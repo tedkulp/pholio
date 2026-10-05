@@ -31,6 +31,12 @@ const (
 	actGoToLink      action = "go-to-link"
 	actJumpBack      action = "jump-back"
 	actJumpForward   action = "jump-forward"
+	actNewNote       action = "new-note"
+	actRenameNote    action = "rename-note"
+	actDeleteNote    action = "delete-note"
+	actTreeAdd       action = "tree-add"
+	actTreeRename    action = "tree-rename"
+	actTreeDelete    action = "tree-delete"
 )
 
 // scope is where a binding fires.
@@ -79,6 +85,7 @@ var bindings = []binding{
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},
 	{scopeLeader, "D", actJumpToDate, "date"},
+	{scopeLeader, "n", actNewNote, "new"},
 
 	{scopeSequence, "[d", actDailyPrev, ""},
 	{scopeSequence, "]d", actDailyNext, ""},
@@ -87,6 +94,9 @@ var bindings = []binding{
 	{scopeSidebar, "esc", actFocusEditor, ""},
 	{scopeSidebar, "<", actSidebarNarrow, ""},
 	{scopeSidebar, ">", actSidebarWiden, ""},
+	{scopeSidebar, "a", actTreeAdd, ""},
+	{scopeSidebar, "r", actTreeRename, ""},
+	{scopeSidebar, "d", actTreeDelete, ""},
 
 	{scopeNormal, "enter", actFollowLink, ""},
 	{scopeNormal, "ctrl+o", actJumpBack, ""},
@@ -100,6 +110,9 @@ var exCommands = map[string]action{
 	"sidebar": actToggleSidebar,
 	"today":   actToday,
 	"daily":   actJumpToDate,
+	"new":     actNewNote,
+	"rename":  actRenameNote,
+	"delete":  actDeleteNote,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -127,6 +140,12 @@ func init() {
 		actGoToLink:      func(m Model, _ string) (Model, tea.Cmd) { return m.goToLink() },
 		actJumpBack:      func(m Model, _ string) (Model, tea.Cmd) { return m.jumpBack() },
 		actJumpForward:   func(m Model, _ string) (Model, tea.Cmd) { return m.jumpForward() },
+		actNewNote:       func(m Model, arg string) (Model, tea.Cmd) { return m.newNote(arg) },
+		actRenameNote:    func(m Model, arg string) (Model, tea.Cmd) { return m.renameNote(arg) },
+		actDeleteNote:    func(m Model, _ string) (Model, tea.Cmd) { return m.deleteNote() },
+		actTreeAdd:       func(m Model, _ string) (Model, tea.Cmd) { return m.treeAdd() },
+		actTreeRename:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeRename() },
+		actTreeDelete:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeDelete() },
 	}
 }
 

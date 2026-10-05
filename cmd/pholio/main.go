@@ -50,7 +50,10 @@ func run(args []string) error {
 	vault, watchErr := startWatching(fsys, s.Target.Vault, ix)
 	defer func() { _ = vault.Close() }()
 	// With no file argument this opens (or creates) today's Daily Note.
-	deps := app.Deps{FS: fsys, Clock: clock, Watch: vault, Opener: seam.SystemOpener{}, Index: ix}
+	deps := app.Deps{
+		FS: fsys, Clock: clock, Watch: vault, Opener: seam.SystemOpener{}, Index: ix,
+		Trash: seam.NewSystemTrash(os.Getenv, home, clock),
+	}
 	m, err := app.Start(deps, s)
 	if err != nil {
 		return err

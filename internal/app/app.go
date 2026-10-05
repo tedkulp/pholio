@@ -69,6 +69,9 @@ type Model struct {
 
 	confirming bool // the overwrite y/N prompt is up (disk.go)
 
+	noMouse bool // mouse = false: no mouse mode is requested (mouse.go)
+	drag    bool // the sidebar border is being dragged (mouse.go)
+
 	jumps   jumplist // the session's Note history (jumplist.go)
 	fed     uint64   // the buffer version last fed to the index (index.go)
 	syncGen int      // the pending index feed; bumped to cancel it
@@ -170,6 +173,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var sync tea.Cmd
 		m, sync = m.editedIndex()
 		cmd = tea.Batch(cmd, sync)
+	case tea.MouseMsg:
+		m, cmd = m.mouse(msg)
 	case paletteMsg:
 		m = m.showPalette(msg.p, msg.on)
 	case indexReadyMsg:
@@ -321,6 +326,7 @@ func (m Model) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
 	v.ReportFocus = true
+	v.MouseMode = m.mouseMode()
 	if m.w <= 0 || m.h <= 0 {
 		return v
 	}

@@ -245,37 +245,27 @@ func Geometry(w, h int) (x, y, boxW, maxH int) {
 // position and the input cursor in screen cells (nil when the input does
 // not have focus).
 func (m Model) View(th theme.Theme, w, h int) (box string, x, y int, cursor *tea.Cursor) {
-	x, y, boxW, maxH := Geometry(w, h)
+	x, y, boxW, _ := Geometry(w, h)
 	inner := max(1, boxW-4) // "│ " and " │"
+	sh := m.shape(h)
 
 	in := th.Style(theme.OverlayInput).Render(m.query)
 	if m.query == "" && m.placeholder != "" {
 		in = th.Style(theme.OverlayPlaceholder).Render(m.placeholder)
 	}
-	head := []string{"> " + in}
-	if m.info != nil {
-		for _, l := range m.info(m.query) {
-			head = append(head, th.Style(theme.OverlayHint).Render(l))
-		}
+	lines := []string{"> " + in}
+	for _, l := range sh.info {
+		lines = append(lines, th.Style(theme.OverlayHint).Render(l))
 	}
-	head = append(head, th.Style(theme.OverlayBorder).Render(strings.Repeat("─", inner)))
-
-	var foot []string
+	if sh.rule {
+		lines = append(lines, th.Style(theme.OverlayBorder).Render(strings.Repeat("─", inner)))
+	}
+	for _, r := range sh.rows {
+		lines = append(lines, m.drawRow(th, r, inner))
+	}
 	if m.hint != "" {
-		foot = []string{th.Style(theme.OverlayHint).Render(m.hint)}
+		lines = append(lines, th.Style(theme.OverlayHint).Render(m.hint))
 	}
-	rows, selRow := m.rows(th, inner)
-	avail := max(1, maxH-2-len(head)-len(foot))
-	if len(rows) > avail {
-		start := max(0, min(selRow-avail/2, len(rows)-avail))
-		rows = rows[start : start+avail]
-	}
-	if len(m.items) == 0 && m.empty == "" && m.mode == Type {
-		rows = nil // a pure prompt, like the Zettel title
-		head = head[:len(head)-1]
-	}
-
-	lines := append(append(head, rows...), foot...)
 	box = m.frame(th, lines, inner)
 	if m.typing {
 		cursor = tea.NewCursor(x+2+2+ansi.StringWidth(m.query), y+1)
@@ -285,32 +275,107 @@ func (m Model) View(th theme.Theme, w, h int) (box string, x, y int, cursor *tea
 	return box, x, y, cursor
 }
 
-// rows draws the visible items with group headers, and says which row is
-// selected.
-func (m Model) rows(th theme.Theme, w int) (rows []string, selRow int) {
+// listRow is one row of the list: an item (vi, an index into visible), a
+// group header, a gap before a header, or the empty-list text.
+type listRow struct {
+	vi    int // -1 when the row is not an item
+	group string
+	empty bool
+}
+
+// shape is what the box holds on a screen h rows tall, below its top
+// border: the input line, the info lines, the rule under them (absent for
+// a pure prompt), the list rows that fit, then the hint.
+type shape struct {
+	info []string
+	rule bool
+	rows []listRow
+}
+
+func (m Model) shape(h int) shape {
+	_, _, _, maxH := Geometry(0, h)
+	var sh shape
+	if m.info != nil {
+		sh.info = m.info(m.query)
+	}
+	if len(m.items) == 0 && m.empty == "" && m.mode == Type {
+		return sh // a pure prompt, like the Zettel title
+	}
+	sh.rule = true
+	foot := 0
+	if m.hint != "" {
+		foot = 1
+	}
+	rows, selRow := m.list()
+	avail := max(1, maxH-2-(2+len(sh.info))-foot)
+	if len(rows) > avail {
+		start := max(0, min(selRow-avail/2, len(rows)-avail))
+		rows = rows[start : start+avail]
+	}
+	sh.rows = rows
+	return sh
+}
+
+// list is every row of the list, group headers included, and the
+// selected row.
+func (m Model) list() (rows []listRow, selRow int) {
 	group := ""
 	for vi, i := range m.visible {
 		it := m.items[i]
 		if it.Group != "" && (vi == 0 || it.Group != group) {
 			if len(rows) > 0 {
-				rows = append(rows, "")
+				rows = append(rows, listRow{vi: -1})
 			}
-			rows = append(rows, th.Style(theme.OverlayGroup).Render(fit(it.Group, w)))
+			rows = append(rows, listRow{vi: -1, group: it.Group})
 		}
 		group = it.Group
 		if vi == m.sel {
 			selRow = len(rows)
 		}
-		rows = append(rows, row(th, it, w, vi == m.sel))
+		rows = append(rows, listRow{vi: vi})
 	}
 	if len(m.visible) == 0 {
+		rows = append(rows, listRow{vi: -1, empty: true})
+	}
+	return rows, selRow
+}
+
+// drawRow draws one list row w cells wide.
+func (m Model) drawRow(th theme.Theme, r listRow, w int) string {
+	switch {
+	case r.vi >= 0:
+		return row(th, m.items[m.visible[r.vi]], w, r.vi == m.sel)
+	case r.group != "":
+		return th.Style(theme.OverlayGroup).Render(fit(r.group, w))
+	case r.empty:
 		text := m.empty
 		if text == "" {
 			text = "no matches"
 		}
-		rows = append(rows, th.Style(theme.OverlayHint).Render(fit(text, w)))
+		return th.Style(theme.OverlayHint).Render(fit(text, w))
 	}
-	return rows, selRow
+	return ""
+}
+
+// Click acts on a click on screen row y, inside the box, on a w×h screen:
+// an item's row is chosen, as enter chooses it. Other rows do nothing.
+func (m Model) Click(w, h, y int) (Model, Event) {
+	_, top, _, _ := Geometry(w, h)
+	sh := m.shape(h)
+	r := y - top - 2 - len(sh.info) - 1 // the border, input, info and rule
+	if !sh.rule || r < 0 || r >= len(sh.rows) || sh.rows[r].vi < 0 {
+		return m, Event{}
+	}
+	m.sel = sh.rows[r].vi
+	it, i, ok := m.Selected()
+	return m, Event{Kind: Chosen, Item: it, Index: i, OK: ok, Query: m.query}
+}
+
+// Scroll moves the selection n rows down (up when n < 0), as the mouse
+// wheel does; the list scrolls to keep it in view.
+func (m Model) Scroll(n int) Model {
+	m.sel = max(0, min(m.sel+n, len(m.visible)-1))
+	return m
 }
 
 func row(th theme.Theme, it Item, w int, selected bool) string {

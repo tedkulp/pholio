@@ -263,7 +263,11 @@ func (m Model) View(th theme.Theme) (string, *tea.Cursor) {
 			if s == curSpot {
 				c = tea.NewCursor(curX-m.left, len(rows))
 			}
-			rows = append(rows, pad(drawRow(lay[s.row], m.left, m.w, styles, look), m.w))
+			row := drawRow(lay[s.row], m.left, m.w, styles, look)
+			if len(lay) == 1 && len(lay[0]) == 0 && m.left == 0 && look(0) == selected {
+				row = styles[selected][kText].Render(" ")
+			}
+			rows = append(rows, pad(row, m.w))
 		}
 	}
 	for len(rows) < m.h {

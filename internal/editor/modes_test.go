@@ -42,6 +42,23 @@ func TestVisualLineSelectsWholeLines(t *testing.T) {
 	}
 }
 
+func TestEmptyLinesInASelectionShowOneSelectedCell(t *testing.T) {
+	visual := th.Style(theme.MarkdownVisual).Inherit(th.Style(theme.UIBase))
+	for _, keys := range []string{"Vjj", "vjj"} {
+		m := feed(open("ab\n\ncd\n\n", 10, 5), keys)
+
+		view, _ := m.View(th)
+
+		rows := strings.Split(view, "\n")
+		if !strings.HasPrefix(rows[1], visual.Render(" ")) {
+			t.Errorf("%s: empty line inside the selection not drawn selected: %q", keys, rows[1])
+		}
+		if strings.Contains(rows[3], visual.Render(" ")) {
+			t.Errorf("%s: empty line after the selection drawn selected: %q", keys, rows[3])
+		}
+	}
+}
+
 func TestSearchMatchesAreDrawnThroughTheSearchSlot(t *testing.T) {
 	m := feed(open("cat dog\nhotdog\n", 20, 3), "/dog<enter>")
 

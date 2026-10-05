@@ -17,3 +17,7 @@ func OpenPalette(p palette.Model, record func(palette.Event)) tea.Msg {
 		return m, nil
 	}}
 }
+
+// ToggleTask toggles the Task at line (0-based) of the Note at path, as the
+// Task List's space does.
+func (m Model) ToggleTask(path string, line int) (Model, error) { return m.toggleTask(path, line) }

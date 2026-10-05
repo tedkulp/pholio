@@ -74,6 +74,9 @@ type Model struct {
 	jumps   jumplist // the session's Note history (jumplist.go)
 	fed     uint64   // the buffer version last fed to the index (index.go)
 	syncGen int      // the pending index feed; bumped to cancel it
+
+	recent   []string    // Notes opened this session, newest first (find.go)
+	complete *completion // the [[ popup (complete.go)
 }
 
 // New opens the Note at path. A missing file opens as an empty buffer, and
@@ -95,6 +98,7 @@ func New(deps Deps, path string) (Model, error) {
 	m.file = file
 	m.ed = m.newEditor(e)
 	m.fed = e.Buf.Version()
+	m.recent = remember(m.recent, path)
 	m.side = sidebar.New(deps.FS, m.vault).Reveal(path)
 	return m.relayout(), nil
 }
@@ -112,8 +116,10 @@ func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
 	return file, e, nil
 }
 
-// newEditor makes the editor pane over e with the configured settings.
+// newEditor makes the editor pane over e with the configured settings,
+// and hooks the Task rules (tasks.go) into e.
 func (m Model) newEditor(e *engine.Engine) editor.Model {
+	e.Fixup = m.taskRules()
 	return editor.New(e, m.rel(e.Path)).SetWrap(m.wrap).SetConceal(m.conceal)
 }
 
@@ -170,6 +176,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.showPalette(msg.p, msg.on)
 	case indexReadyMsg:
 		m = m.indexScanned(msg)
+	case grepTickMsg:
+		m = m.grepTick(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()
@@ -193,6 +201,9 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	}
 	if m.overlay != nil {
 		return m.overlayKey(msg)
+	}
+	if m.complete != nil {
+		return m.completeKey(msg)
 	}
 	if m.leader {
 		m.leader = false
@@ -230,7 +241,7 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.message, m.problem = "", false
 		return m.run(actGoToLink, "")
 	}
-	return m.editorKey(msg)
+	return maybeComplete(m.editorKey(msg))
 }
 
 // free reports whether global keys (the leader, ctrl+h/l) may fire: from
@@ -281,6 +292,7 @@ func (m Model) paste(msg tea.PasteMsg) (Model, tea.Cmd) {
 		return m.overlayPaste(msg.Content)
 	case !m.sidebarFocused():
 		m.ed = m.ed.Update(msg)
+		m = m.syncCompletion(false)
 	}
 	return m, nil
 }
@@ -331,6 +343,9 @@ func (m Model) View() tea.View {
 	}
 	rows = rows[max(0, len(rows)-m.h):]
 	content := strings.Join(rows, "\n")
+	if m.complete != nil && cursor != nil {
+		content = m.drawCompletion(th, content, cursor)
+	}
 	if m.overlay != nil {
 		content, cursor = m.composeOverlay(th, content)
 	}

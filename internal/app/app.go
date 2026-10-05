@@ -168,6 +168,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.showPalette(msg.p, msg.on)
 	case indexReadyMsg:
 		m = m.indexScanned(msg)
+	case grepTickMsg:
+		m = m.grepTick(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()

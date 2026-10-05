@@ -168,3 +168,12 @@ func parseKeyValue(w string) (k, v string, ok bool) {
 	}
 	return k, v, true
 }
+
+// Due is the due: date as written (YYYY-MM-DD), or "".
+func (t Task) Due() string { return t.Meta["due"] }
+
+// Pri is the pri: value lower-cased ("high", "med", "low"), or "".
+func (t Task) Pri() string { return strings.ToLower(t.Meta["pri"]) }
+
+// DoneOn is the done: date stamped when the Task was completed, or "".
+func (t Task) DoneOn() string { return t.Meta["done"] }

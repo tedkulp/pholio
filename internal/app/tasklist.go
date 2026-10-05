@@ -149,7 +149,7 @@ func (m Model) taskRows(v taskView) []palette.Item {
 		slices.SortFunc(ts, compareTasks)
 		for _, t := range ts {
 			slot := g.slot
-			if t.Meta["pri"] == "high" && t.Status.IsOpen() && g != groupOverdue {
+			if t.Pri() == "high" && t.Status.IsOpen() && g != groupOverdue {
 				slot = theme.TasksPriHigh
 			}
 			items = append(items, palette.Item{
@@ -172,12 +172,12 @@ func groupOf(t index.Task, today time.Time, all bool) (taskGroup, bool) {
 		switch {
 		case all:
 			return groupAllDone, true
-		case t.Status == index.Done && t.Meta["done"] == today.Format(dates.ISO):
+		case t.Status == index.Done && t.DoneOn() == today.Format(dates.ISO):
 			return groupDone, true
 		}
 		return taskGroup{}, false
 	}
-	due, err := time.ParseInLocation(dates.ISO, t.Meta["due"], today.Location())
+	due, err := time.ParseInLocation(dates.ISO, t.Due(), today.Location())
 	switch {
 	case err != nil:
 		return groupNoDate, true
@@ -192,7 +192,7 @@ func groupOf(t index.Task, today time.Time, all bool) (taskGroup, bool) {
 // compareTasks orders Tasks by due date (undated last), then pri (high,
 // med, low, none), then file and line.
 func compareTasks(a, b index.Task) int {
-	da, db := a.Meta["due"], b.Meta["due"]
+	da, db := a.Due(), b.Due()
 	if (da == "") != (db == "") {
 		if da == "" {
 			return 1
@@ -208,7 +208,7 @@ func compareTasks(a, b index.Task) int {
 }
 
 func priRank(t index.Task) int {
-	switch strings.ToLower(t.Meta["pri"]) {
+	switch t.Pri() {
 	case "high":
 		return 0
 	case "med":

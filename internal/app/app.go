@@ -14,12 +14,15 @@ import (
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/sidebar"
 	"github.com/tedkulp/pholio/internal/theme"
+	"github.com/tedkulp/pholio/internal/watch"
 )
 
 // Deps are the injected seams the app reaches the outside world through.
 type Deps struct {
 	FS    seam.FS
 	Clock seam.Clock
+	// Watch, if set, reports changes made to the Vault outside pholio.
+	Watch *watch.Vault
 }
 
 // focus is the pane that receives keys.
@@ -33,11 +36,13 @@ const (
 // Model is the root model: the sidebar and the editor pane, the status and
 // message lines, and at most one prompt or palette on top.
 type Model struct {
-	deps  Deps
-	vault string
-	ed    editor.Model
-	wrap  bool
-	w, h  int
+	deps    Deps
+	vault   string
+	file    *noteFile // the open Note's file; shared by copies, like the engine
+	ed      editor.Model
+	wrap    bool
+	conceal bool
+	w, h    int
 
 	side   sidebar.Model
 	sideOn bool
@@ -54,38 +59,49 @@ type Model struct {
 	looks   looks
 	message string // shown on the message line until the next key
 	problem bool   // the message reports a problem
+
+	confirming bool // the overwrite y/N prompt is up (disk.go)
 }
 
 // New opens the Note at path. A missing file opens as an empty buffer.
 // Until WithSession, the Note's folder stands in for the Vault.
 func New(deps Deps, path string) (Model, error) {
+	path = filepath.Clean(path)
 	m := Model{
-		deps: deps, vault: filepath.Dir(path), wrap: true,
+		deps: deps, vault: filepath.Dir(path), wrap: true, conceal: true,
 		sideOn: true, sideW: config.DefaultState().SidebarWidth,
 		exq: &exQueue{}, looks: defaultLooks(),
 	}
-	e, err := m.openEngine(path)
+	file, e, err := m.openEngine(path)
 	if err != nil {
 		return Model{}, err
 	}
-	m.ed = editor.New(e, m.rel(path))
+	m.file = file
+	m.ed = m.newEditor(e)
 	m.side = sidebar.New(deps.FS, m.vault).Reveal(path)
 	return m.relayout(), nil
 }
 
-// openEngine loads path into a new engine wired to the app's ex commands.
-func (m Model) openEngine(path string) (*engine.Engine, error) {
-	e, err := engine.Open(m.deps.FS, path)
+// openEngine loads path, through a new noteFile, into a new engine wired
+// to the app's ex commands.
+func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
+	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, path: path}
+	e, err := engine.Open(file, path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	e.Msg = ""
+	e.Msg = "" // the message line is the app's
 	m.registerEx(e)
-	return e, nil
+	return file, e, nil
+}
+
+// newEditor makes the editor pane over e with the configured settings.
+func (m Model) newEditor(e *engine.Engine) editor.Model {
+	return editor.New(e, m.rel(e.Path)).SetWrap(m.wrap).SetConceal(m.conceal)
 }
 
 // path is the open Note's path.
-func (m Model) path() string { return m.ed.Engine().Path }
+func (m Model) path() string { return m.file.path }
 
 // rel is path relative to the Vault, for display.
 func (m Model) rel(path string) string {
@@ -95,8 +111,8 @@ func (m Model) rel(path string) string {
 	return filepath.Base(path)
 }
 
-// Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+// Init implements tea.Model: it starts listening for watcher Notices.
+func (m Model) Init() tea.Cmd { return m.listen() }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -104,6 +120,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+	case noticeMsg:
+		m.side = m.side.Refresh()
+		if msg.Rescan || msg.Path == m.path() {
+			m = m.checkDisk()
+		}
+		cmd = m.listen()
+	case tea.FocusMsg:
+		if m.deps.Watch != nil {
+			m.deps.Watch.Rescan()
+		}
+		m.side = m.side.Refresh()
+		m = m.checkDisk()
 	case tea.KeyPressMsg:
 		m, cmd = m.key(msg)
 	case tea.PasteMsg:
@@ -120,6 +148,9 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	name := keyName(msg)
 	if m.prompt != nil {
 		return m.answer(name)
+	}
+	if m.confirming && name != "ctrl+q" {
+		return m.answerOverwrite(msg), nil
 	}
 	if a, ok := lookup(scopeApp, name); ok {
 		return m.run(a, "")
@@ -171,6 +202,7 @@ func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 	}
 	m.ed = m.ed.Update(msg)
+	m = m.askedToOverwrite()
 	m, cmd := m.drainEx()
 	if e.Quit { // :wq and :x, once written
 		e.Quit = false
@@ -215,6 +247,7 @@ func (m Model) relayout() Model {
 func (m Model) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
+	v.ReportFocus = true
 	if m.w <= 0 || m.h <= 0 {
 		return v
 	}
@@ -226,12 +259,14 @@ func (m Model) View() tea.View {
 		rows = append([]string{body}, rows...)
 		cursor = c
 	}
-	rows = rows[max(0, len(rows)-m.h):]
-	if m.prompt == nil && !m.sidebarFocused() && m.cmdline() {
-		p, t := m.ed.Engine().CmdLine()
-		cursor = tea.NewCursor(min(m.w-1, ansi.StringWidth(p+t)), m.h-1)
-		cursor.Shape, cursor.Blink = tea.CursorBar, false
+	// An open ":" or "/" line replaces the message line and takes the
+	// cursor.
+	if line, c, ok := m.ed.CmdLine(th, m.w); ok && m.prompt == nil {
+		rows[len(rows)-1] = line
+		c.Y = m.h - 1
+		cursor = c
 	}
+	rows = rows[max(0, len(rows)-m.h):]
 	content := strings.Join(rows, "\n")
 	if m.overlay != nil {
 		content, cursor = m.composeOverlay(th, content)
@@ -244,7 +279,7 @@ func (m Model) View() tea.View {
 // body is the pane area: sidebar and editor side by side.
 func (m Model) body() (string, *tea.Cursor) {
 	th := m.looks.theme
-	text, cursor := m.ed.View(th)
+	text, cursor := m.ed.SetTags(m.file.tags()...).View(th)
 	sw := m.sidebarWidth()
 	if m.sidebarFocused() {
 		cursor = nil
@@ -264,26 +299,20 @@ func (m Model) body() (string, *tea.Cursor) {
 	return strings.Join(lines, "\n"), cursor
 }
 
-// cmdline reports whether the editor is reading a ":" or "/" line.
-func (m Model) cmdline() bool {
-	mode := m.ed.Engine().Mode
-	return mode == engine.Command || mode == engine.Search
-}
-
 // statusLine is the editor's status line, or the leader hint while spc is
 // pending.
 func (m Model) statusLine() string {
 	th := m.looks.theme
 	if !m.leader {
-		return m.ed.StatusLine(th, m.w)
+		return m.ed.SetTags(m.file.tags()...).StatusLine(th, m.w)
 	}
 	left := th.Style(theme.UIModeCommand).Render(" spc ") + th.Style(theme.UIStatusline).Render(" "+leaderHint())
 	left = ansi.Truncate(left, m.w, "…")
 	return left + th.Style(theme.UIStatusline).Render(strings.Repeat(" ", max(0, m.w-ansi.StringWidth(left))))
 }
 
-// messageLine shows the prompt, the cmdline, the app's message or the
-// engine's, in that order.
+// messageLine shows the prompt, the app's message or the engine's, in that
+// order. The cmdline, when open, is drawn over it in View.
 func (m Model) messageLine() string {
 	th := m.looks.theme
 	e := m.ed.Engine()
@@ -291,9 +320,6 @@ func (m Model) messageLine() string {
 	switch {
 	case m.prompt != nil:
 		msg = m.prompt.question
-	case m.cmdline() && !m.sidebarFocused():
-		p, t := e.CmdLine()
-		msg = p + t
 	case m.message != "":
 		msg = m.message
 		if m.problem {

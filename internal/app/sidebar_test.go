@@ -153,6 +153,21 @@ func TestOpeningANoteOverADirtyBufferAsks(t *testing.T) {
 	}
 }
 
+func TestANoteOpenedFromTheSidebarFollowsDiskChanges(t *testing.T) {
+	fsys := shellVault()
+	m := keys(shell(t, fsys, "/vault/a.md"), ctrlH)
+	m = keys(typeKeys(m, "Gk"), enter) // Beta
+	if err := fsys.WriteFile("/vault/Beta.md", []byte("# Beta v2\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	next, _ := m.Update(tea.FocusMsg{})
+
+	if got := next.(app.Model).Text(); got != "# Beta v2\n" {
+		t.Errorf("buffer = %q, want Beta reloaded from disk", got)
+	}
+}
+
 func TestOpeningTheOpenNoteKeepsItsBuffer(t *testing.T) {
 	m := shell(t, shellVault(), "/vault/a.md")
 	m = keys(typeKeys(m, "dd"), ctrlH)

@@ -43,7 +43,32 @@ func TestListContinuation(t *testing.T) {
 		{"enter before bullet does not continue", "|- a", "i<enter><esc>", "\n|- a"},
 		{"o task", "|- [ ] one", "otwo<esc>", "- [ ] one\n- [ ] tw|o"},
 		{"o numbered", "|1. one", "otwo<esc>", "1. one\n2. tw|o"},
+		{"o bullet", "|- one", "otwo<esc>", "- one\n- tw|o"},
+		{"o keeps nested indent", "|  - one", "otwo<esc>", "  - one\n  - tw|o"},
+		{"enter splits item text", "- ab|cd", "i<enter>x<esc>", "- ab\n- |xcd"},
+		{"enter in-progress task", "- [/] a|", "a<enter>b<esc>", "- [/] a\n- [ ] |b"},
+		{"enter cancelled task", "* [-] a|", "a<enter>b<esc>", "* [-] a\n* [ ] |b"},
+		{"enter ends empty numbered item", "1. a|", "a<enter><enter>b<esc>", "1. a\n|b"},
+		{"enter ends empty task", "- [ ] a|", "a<enter><enter>b<esc>", "- [ ] a\n|b"},
+		{"enter ends empty nested item", "  - a|", "a<enter><enter>b<esc>", "  - a\n|b"},
+		{"enter ends bare checkbox item", "- [ ]|", "a<enter>b<esc>", "|b"},
 	})
+}
+
+func TestListContinuationOff(t *testing.T) {
+	for _, c := range []tcase{
+		{"enter keeps indent only", "  - a|", "a<enter>b<esc>", "  - a\n  |b"},
+		{"o keeps indent only", "|1. a", "ob<esc>", "1. a\n|b"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := load(c.in)
+			e.ListContinuation = false
+			feed(e, c.keys)
+			if g := show(e); g != c.want {
+				t.Errorf("%q + %q\n got: %q\nwant: %q", c.in, c.keys, g, c.want)
+			}
+		})
+	}
 }
 
 func TestPasteInInsertMode(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 // listRe matches a list item prefix: indent, bullet or number, spacing, and
 // an optional Task checkbox.
-var listRe = regexp.MustCompile(`^(\s*)([-*+]|\d+[.)])(\s+)(\[[ xX/-]\]\s+)?`)
+var listRe = regexp.MustCompile(`^(\s*)([-*+]|\d+[.)])(\s+)(\[[ xX/-]\](?:\s+|$))?`)
 
 func (e *Engine) startInsert() {
 	e.Mode = Insert

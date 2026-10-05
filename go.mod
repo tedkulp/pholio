@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20261004011457-ad85c59fdf4e
 	github.com/charmbracelet/x/vt v0.0.0-20261004011457-ad85c59fdf4e
 	github.com/clipperhouse/uax29/v2 v2.7.0
+	github.com/fsnotify/fsnotify v1.10.1
 )
 
 require (

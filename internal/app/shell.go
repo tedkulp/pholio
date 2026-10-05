@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/config"
-	"github.com/tedkulp/pholio/internal/editor"
 	"github.com/tedkulp/pholio/internal/sidebar"
 )
 
@@ -94,11 +93,12 @@ func (m Model) openNote(path string) (Model, tea.Cmd) {
 
 // switchTo replaces the editor's buffer with the Note at path.
 func (m Model) switchTo(path string) Model {
-	e, err := m.openEngine(path)
+	file, e, err := m.openEngine(path)
 	if err != nil {
 		return m.say(err.Error(), true)
 	}
-	m.ed = editor.New(e, m.rel(path)).SetWrap(m.wrap)
+	m.file, m.confirming = file, false
+	m.ed = m.newEditor(e)
 	m.side = m.side.Reveal(path)
 	m.focus = focusEditor
 	return m.relayout()
@@ -131,11 +131,13 @@ func (m Model) unlessDirty(question string, then func(Model) (Model, tea.Cmd)) (
 	}), nil
 }
 
-// save writes the buffer to its Note.
+// save writes the buffer to its Note. It refuses, like :w, when the Note
+// changed on disk; the message says how to resolve that.
 func (m Model) save() (Model, bool) {
 	e := m.ed.Engine()
-	if err := m.deps.FS.WriteFile(e.Path, []byte(e.Buf.String())); err != nil {
-		return m.say("saving "+m.rel(e.Path)+": "+err.Error(), true), false
+	if err := m.file.WriteFile(m.path(), []byte(e.Buf.String())); err != nil {
+		m.file.refused = false
+		return m.say("saving "+m.rel(m.path())+": "+err.Error()+" (:e! to reload, :w to overwrite)", true), false
 	}
 	e.Dirty = false
 	return m, true

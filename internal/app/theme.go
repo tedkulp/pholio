@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/tedkulp/pholio/internal/config"
-	"github.com/tedkulp/pholio/internal/editor"
 	"github.com/tedkulp/pholio/internal/sidebar"
 	"github.com/tedkulp/pholio/internal/theme"
 )
@@ -30,9 +29,9 @@ func (m Model) WithSession(s config.Session) Model {
 	m.session = &s
 	problems := m.loadTheme(s.Config.Theme)
 	m.looks.configured = s.Config.Theme
-	m.wrap = s.Config.Wrap
+	m.wrap, m.conceal = s.Config.Wrap, s.Config.Conceal
 	m.vault = s.Target.Vault
-	m.ed = editor.New(m.ed.Engine(), m.rel(m.path())).SetWrap(m.wrap)
+	m.ed = m.newEditor(m.ed.Engine())
 	m.side = sidebar.New(m.deps.FS, m.vault).Reveal(m.path())
 	store := config.NewStateStore(m.deps.FS, s.Dirs)
 	m.state = &store
@@ -88,8 +87,8 @@ func (m Model) reload() Model {
 		cfg, msg := s.Reload(m.deps.FS)
 		s.Config, configMsg = cfg, msg
 		m.session = &s
-		m.wrap = cfg.Wrap
-		m.ed = m.ed.SetWrap(cfg.Wrap)
+		m.wrap, m.conceal = cfg.Wrap, cfg.Conceal
+		m.ed = m.ed.SetWrap(cfg.Wrap).SetConceal(cfg.Conceal)
 		if cfg.Theme != m.looks.configured {
 			name, m.looks.configured = cfg.Theme, cfg.Theme
 		}

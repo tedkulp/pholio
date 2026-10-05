@@ -59,6 +59,7 @@ group            = { fg = "peach", bold = true }
 # ---- editor text ----
 [markdown]
 heading          = { fg = "accent", bold = true }
+marker           = { fg = "muted" }
 bold             = { bold = true }
 italic           = { italic = true }
 code             = { fg = "yellow" }

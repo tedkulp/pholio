@@ -1,5 +1,6 @@
 // Package editor is the editor pane: it feeds keys to a vim engine and
-// draws the engine's buffer with soft wrap, scrolloff and a real cursor.
+// draws the engine's buffer with soft wrap, scrolloff, a real cursor,
+// markdown highlighting and conceal.
 package editor
 
 import (
@@ -24,21 +25,35 @@ type spot struct{ line, row int }
 // so treat a Model as a handle: use the value Update returns.
 type Model struct {
 	e    *engine.Engine
-	name string // file name for the status line
-	w, h int    // pane size in cells, status line not included
+	name string   // file name for the status line
+	tags []string // shown after the name, such as "[deleted]"
+	w, h int      // pane size in cells, status line not included
 	wrap bool
+	// conceal hides markdown syntax on every line but the cursor's.
+	conceal bool
+	// fence is the fence pass over the buffer: fence[i] is true when line
+	// i is a fence or inside a fenced code block.
+	fence []bool
 
 	top  spot // first visible row
 	left int  // first visible cell column when wrap is off
 }
 
-// New makes a pane over e, showing name on the status line. Wrap is on.
+// New makes a pane over e, showing name on the status line. Wrap and
+// conceal are on.
 func New(e *engine.Engine, name string) Model {
-	return Model{e: e, name: name, wrap: true}
+	return Model{e: e, name: name, wrap: true, conceal: true, fence: fences(e.Buf)}
 }
 
 // Engine is the engine the pane edits.
 func (m Model) Engine() *engine.Engine { return m.e }
+
+// SetTags sets the markers shown after the file name on the status line,
+// such as "[deleted]". No tags clears them.
+func (m Model) SetTags(tags ...string) Model {
+	m.tags = tags
+	return m
+}
 
 // SetSize sets the text area to w×h cells.
 func (m Model) SetSize(w, h int) Model {
@@ -52,6 +67,14 @@ func (m Model) SetSize(w, h int) Model {
 func (m Model) SetWrap(on bool) Model {
 	m.wrap = on
 	m.left = 0
+	m.scroll()
+	return m
+}
+
+// SetConceal turns conceal on or off. On, [[ ]], **, backticks and link
+// URLs are hidden on every line except the cursor's.
+func (m Model) SetConceal(on bool) Model {
+	m.conceal = on
 	m.scroll()
 	return m
 }
@@ -80,11 +103,16 @@ func keyName(msg tea.KeyPressMsg) string {
 	return msg.Keystroke()
 }
 
-// lay lays out buffer line i for the pane.
+// lay lays out buffer line i for the pane, highlighted, and concealed
+// unless it is the cursor's line.
 func (m *Model) lay(i int) layout {
 	l := m.e.Buf.Line(i)
 	cur := m.e.Cur
-	return layoutLine(l, m.w, m.wrap, i == cur.Line && cur.Col >= len(l) && l != "")
+	ks, hidden := highlight(l, i < len(m.fence) && m.fence[i])
+	if !m.conceal || i == cur.Line {
+		hidden = nil
+	}
+	return layoutLine(l, ks, hidden, m.w, m.wrap, i == cur.Line && cur.Col >= len(l) && l != "")
 }
 
 // up moves s up by n rows, stopping at the first row of the buffer, and
@@ -125,6 +153,7 @@ func (m *Model) cursorSpot() (spot, int) {
 // context. It walks at most a screenful of rows from the cursor, so it
 // costs O(viewport) however far the cursor jumped.
 func (m *Model) scroll() {
+	m.fence = fences(m.e.Buf)
 	if m.h == 0 {
 		return
 	}
@@ -169,63 +198,42 @@ func (m *Model) distance(top, s spot, limit int) int {
 }
 
 // View draws the text area, one line per row, each padded to the pane
-// width. The cursor is relative to the pane's top-left cell.
+// width. The cursor is relative to the pane's top-left cell. It is nil
+// while a command line is open: the cursor is on that line then.
 func (m Model) View(th theme.Theme) (string, *tea.Cursor) {
-	base, eob := th.Style(theme.UIBase), th.Style(theme.UIEndOfBuffer)
+	if len(m.fence) != m.e.Buf.LineCount() { // changed outside Update
+		m.fence = fences(m.e.Buf)
+	}
+	styles := paletteFor(th)
+	eob := th.Style(theme.UIEndOfBuffer)
 	curSpot, curX := m.cursorSpot()
 	rows := make([]string, 0, m.h)
 	var c *tea.Cursor
 	n := m.e.Buf.LineCount()
 	for s := m.top; s.line < n && len(rows) < m.h; s.line, s.row = s.line+1, 0 {
 		lay := m.lay(s.line)
+		look := m.looks(s.line)
 		for ; s.row < len(lay) && len(rows) < m.h; s.row++ {
 			if s == curSpot {
 				c = tea.NewCursor(curX-m.left, len(rows))
 			}
-			text := drawRow(lay[s.row], m.left, m.w)
-			row := ""
-			if text != "" {
-				row = base.Render(text)
-			}
-			rows = append(rows, pad(row, m.w))
+			rows = append(rows, pad(drawRow(lay[s.row], m.left, m.w, styles, look), m.w))
 		}
 	}
 	for len(rows) < m.h {
 		rows = append(rows, pad(eob.Render("~"), m.w))
 	}
-	if c != nil {
-		c.Blink = false
-		switch {
-		case m.e.Mode == engine.Insert:
-			c.Shape = tea.CursorBar
-		case m.e.OperatorPending():
-			c.Shape = tea.CursorUnderline
-		}
+	if c == nil || m.onCmdline() {
+		return strings.Join(rows, "\n"), nil
+	}
+	c.Blink = false
+	switch {
+	case m.e.Mode == engine.Insert:
+		c.Shape = tea.CursorBar
+	case m.e.OperatorPending():
+		c.Shape = tea.CursorUnderline
 	}
 	return strings.Join(rows, "\n"), c
-}
-
-// drawRow is the plain text of the glyphs that fall in cells
-// [left, left+w). A wide glyph cut by either edge shows as blanks.
-func drawRow(gs []glyph, left, w int) string {
-	var sb strings.Builder
-	x := 0
-	for _, g := range gs {
-		gx := x
-		x += g.w
-		if x <= left {
-			continue
-		}
-		if gx >= left+w {
-			break
-		}
-		if gx < left || x > left+w || g.text == "\t" {
-			sb.WriteString(strings.Repeat(" ", min(x, left+w)-max(gx, left)))
-			continue
-		}
-		sb.WriteString(g.text)
-	}
-	return sb.String()
 }
 
 // pad fills s with spaces to w cells.
@@ -241,13 +249,21 @@ func pad(s string, w int) string {
 func (m Model) StatusLine(th theme.Theme, w int) string {
 	bar := th.Style(theme.UIStatusline)
 	modeSlot := theme.UIModeNormal
-	if m.e.Mode == engine.Insert {
+	switch m.e.Mode {
+	case engine.Insert:
 		modeSlot = theme.UIModeInsert
+	case engine.Visual, engine.VisualLine:
+		modeSlot = theme.UIModeVisual
+	case engine.Command, engine.Search:
+		modeSlot = theme.UIModeCommand
 	}
 	left := th.Style(modeSlot).Render(" "+m.e.Mode.String()+" ") +
 		th.Style(theme.UIStatusFile).Render(" "+m.name)
 	if m.e.Dirty {
 		left += th.Style(theme.UIStatusDirty).Render(" [+]")
+	}
+	for _, t := range m.tags {
+		left += th.Style(theme.UIStatusDirty).Render(" " + t)
 	}
 	if pk := m.e.PendingKeys(); pk != "" {
 		left += bar.Render("  " + pk)
@@ -262,4 +278,27 @@ func (m Model) StatusLine(th theme.Theme, w int) string {
 	left = ansi.Truncate(left, room, "")
 	gap := w - ansi.StringWidth(left) - ansi.StringWidth(right)
 	return left + bar.Render(strings.Repeat(" ", gap)) + right
+}
+
+// onCmdline reports whether the engine is reading a ":", "/" or "?" line.
+func (m Model) onCmdline() bool {
+	return m.e.Mode == engine.Command || m.e.Mode == engine.Search
+}
+
+// CmdLine is the ":", "/" or "?" line being typed, cut from the left to
+// fit w cells so its end stays visible, with a bar cursor after it. The
+// cursor is relative to the line's first cell. ok is false when no
+// command line is open, and the host shows its message line instead.
+func (m Model) CmdLine(th theme.Theme, w int) (line string, cursor *tea.Cursor, ok bool) {
+	if !m.onCmdline() {
+		return "", nil, false
+	}
+	prompt, text := m.e.CmdLine()
+	s := prompt + text
+	if over := ansi.StringWidth(s) - (w - 1); over > 0 {
+		s = ansi.TruncateLeft(s, over, "")
+	}
+	c := tea.NewCursor(ansi.StringWidth(s), 0)
+	c.Shape, c.Blink = tea.CursorBar, false
+	return th.Style(theme.UIBase).Render(s), c, true
 }

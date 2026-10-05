@@ -173,6 +173,26 @@ func (m Model) Update(key string) (Model, Event) {
 	return m.clamp(), Event{}
 }
 
+// Click acts on screen row row of the pane, as View draws it: a folder
+// opens or closes and a Note is opened, as enter does. Row 0 is the
+// header, which does nothing.
+func (m Model) Click(row int) (Model, Event) {
+	i := m.top + row - 1
+	if row < 1 || i >= len(m.nodes) {
+		return m, Event{}
+	}
+	m.sel = i
+	return m.Update("enter")
+}
+
+// Scroll moves the view n rows down (up when n < 0). The selection is
+// pulled along when it would leave the view.
+func (m Model) Scroll(n int) Model {
+	m.top = max(0, min(m.top+n, len(m.nodes)-m.h))
+	m.sel = max(m.top, min(m.sel, m.top+m.h-1))
+	return m.clamp()
+}
+
 func (m Model) setExpanded(dir string, open bool) Model {
 	ex := maps.Clone(m.expanded)
 	if open {

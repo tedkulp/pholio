@@ -69,6 +69,11 @@ func (m Model) resizeSidebar(delta int) Model {
 func (m Model) sidebarKey(name string) (Model, tea.Cmd) {
 	var ev sidebar.Event
 	m.side, ev = m.side.Update(name)
+	return m.sidebarEvent(ev)
+}
+
+// sidebarEvent acts on what a key or click in the tree asked for.
+func (m Model) sidebarEvent(ev sidebar.Event) (Model, tea.Cmd) {
 	switch ev.Kind {
 	case sidebar.Open:
 		return m.openNote(ev.Path)
@@ -138,6 +143,7 @@ func (m Model) switchTo(path string) (Model, bool) {
 	m.file, m.confirming = file, false
 	m.ed = m.newEditor(e)
 	m.fed = e.Buf.Version()
+	m.recent = remember(m.recent, path)
 	m.side = m.side.Reveal(path)
 	m.focus = focusEditor
 	return m.relayout(), true

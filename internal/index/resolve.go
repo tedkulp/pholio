@@ -47,13 +47,21 @@ func (ix *Index) resolve(from string, l Link) (Resolution, bool) {
 
 // resolveName resolves a WikiLink target. Callers hold mu.
 func (ix *Index) resolveName(target string) (Resolution, bool) {
+	return ResolveName(target, func(name string) []string { return ix.byName[name] })
+}
+
+// ResolveName resolves a WikiLink target the way Resolve does, among the
+// Notes named returns for a lower-cased filename without ".md". It lets
+// code holding its own list of Notes (a planned rename) resolve Links by
+// the same rules.
+func ResolveName(target string, named func(name string) []string) (Resolution, bool) {
 	target = strings.TrimSuffix(strings.Trim(target, "/"), ".md")
 	folder, name := "", target
 	if i := strings.LastIndexByte(target, '/'); i >= 0 {
 		folder, name = strings.ToLower(target[:i]), target[i+1:]
 	}
 	var matches []string
-	for _, p := range ix.byName[strings.ToLower(name)] {
+	for _, p := range named(strings.ToLower(name)) {
 		if folder != "" {
 			dir := strings.ToLower(path.Dir(p))
 			if dir != folder && !strings.HasSuffix(dir, "/"+folder) {

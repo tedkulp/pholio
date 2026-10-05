@@ -66,6 +66,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.message, m.problem = "", false
 			m.ed = m.ed.Update(msg)
+			if e := m.ed.Engine(); e.Quit {
+				e.Quit = false
+				return m, tea.Quit
+			}
 		}
 	case tea.PasteMsg:
 		m.ed = m.ed.Update(msg)
@@ -87,6 +91,13 @@ func (m Model) View() tea.View {
 	if m.h > 2 {
 		rows = append([]string{text}, rows...)
 		v.Cursor = cursor
+	}
+	// An open ":" or "/" line replaces the message line and takes the
+	// cursor.
+	if line, c, ok := m.ed.CmdLine(th, m.w); ok {
+		rows[len(rows)-1] = line
+		c.Y = m.h - 1
+		v.Cursor = c
 	}
 	rows = rows[max(0, len(rows)-m.h):]
 	v.SetContent(strings.Join(rows, "\n"))

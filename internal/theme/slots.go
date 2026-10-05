@@ -49,6 +49,7 @@ const (
 // Editor text.
 const (
 	MarkdownHeading  Slot = "markdown.heading"
+	MarkdownMarker   Slot = "markdown.marker"
 	MarkdownBold     Slot = "markdown.bold"
 	MarkdownItalic   Slot = "markdown.italic"
 	MarkdownCode     Slot = "markdown.code"

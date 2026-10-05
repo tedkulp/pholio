@@ -1,0 +1,55 @@
+# pholio
+
+A terminal app for keeping a personal markdown knowledge base, organized around daily notes, Zettelkasten-style linked notes, and one vault-wide TODO list.
+
+## Language
+
+### Vault and notes
+
+**Vault**:
+The root folder holding every note pholio manages. It is a plain directory of markdown files.
+_Avoid_: workspace, library, repo
+
+**Note**:
+One markdown file inside the Vault.
+_Avoid_: page, document, entry
+
+**Daily Note**:
+The Note for one calendar day, created from the daily Template the first time that day is opened.
+_Avoid_: journal, diary entry
+
+**Zettel**:
+A Note on a single idea, created on the spot from inside another Note. Its name carries a timestamp ID so it stays unique and stable when its title changes.
+_Avoid_: card, atomic note, permanent note
+
+**Template**:
+A Note whose contents become the starting text of a new Note, after its placeholders are filled in.
+_Avoid_: skeleton, boilerplate
+
+### Connections
+
+**Link**:
+A `[[wikilink]]` from one Note to another.
+_Avoid_: reference, ref
+
+**Backlink**:
+A Link in the reverse direction, seen from the Note being linked to.
+_Avoid_: inbound link, mention
+
+**Origin**:
+The Note (usually a Daily Note) that was open when a Zettel was created. The Zettel links back to it.
+_Avoid_: parent, source
+
+### Tasks
+
+**Task**:
+One markdown checkbox line (`- [ ]` / `- [x]`) anywhere in the Vault, along with its inline metadata.
+_Avoid_: TODO item, todo, action item
+
+**Task Metadata**:
+`key:value` pairs and `#tags` written inline on a Task's line, such as `due:2026-10-10 pri:high #work`.
+_Avoid_: attributes, properties, fields
+
+**Task List**:
+The single view that gathers every Task in the Vault.
+_Avoid_: master list, agenda, inbox

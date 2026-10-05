@@ -314,3 +314,60 @@ func paletteInput(m app.Model) string {
 	}
 	return strings.Join(rows(m), "\n")
 }
+
+// treeRow is the screen row of the tree entry labelled label.
+func treeRow(t *testing.T, m app.Model, label string) int {
+	t.Helper()
+	for i, e := range tree(m) {
+		if strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(e), "▸▾")) == label {
+			return i + 1 // the header is row 0
+		}
+	}
+	t.Fatalf("%q not in the tree %q", label, tree(m))
+	return 0
+}
+
+func TestSidebarKeysAndClicksWorkInOneSession(t *testing.T) {
+	m, v, trash := opsVault(t, "index.md")
+
+	m = send(m, click(5, treeRow(t, m, "alpha"))) // click opens a Note
+	if got := v.rel(t, m); got != "alpha.md" {
+		t.Fatalf("click opened %q, want alpha.md", got)
+	}
+
+	m = selectInTree(t, m, v, "sub") // a adds
+	m = press(typeKeys(typeKeys(m, "a"), "fresh"), enter)
+	if !v.exists("sub/fresh.md") {
+		t.Fatal("a did not create sub/fresh.md")
+	}
+
+	m = send(m, click(5, treeRow(t, m, "index"))) // clicks still open Notes
+	if got := v.rel(t, m); got != "index.md" {
+		t.Fatalf("click after a opened %q, want index.md", got)
+	}
+
+	m = selectInTree(t, m, v, "sub/fresh.md") // r renames
+	m = press(typeKeys(keys(typeKeys(m, "r"), ctrlU), "sub/renamed"), enter)
+	if !v.exists("sub/renamed.md") || v.exists("sub/fresh.md") {
+		t.Fatal("r did not rename sub/fresh.md")
+	}
+
+	row := treeRow(t, m, "sub") // a click toggles a folder after r
+	before := len(tree(m))
+	m = send(m, click(5, row))
+	if len(tree(m)) == before {
+		t.Fatal("clicking the sub folder after r did not toggle it")
+	}
+	m = send(m, click(5, row)) // and back open
+
+	m = selectInTree(t, m, v, "sub/renamed.md") // d deletes
+	m = typeKeys(typeKeys(m, "d"), "y")
+	if v.exists("sub/renamed.md") || len(trash.Trashed()) != 1 {
+		t.Fatalf("d did not trash sub/renamed.md: %v", trash.Trashed())
+	}
+
+	m = send(m, click(5, treeRow(t, m, "alpha"))) // and clicks still work
+	if got := v.rel(t, m); got != "alpha.md" {
+		t.Errorf("click after d opened %q, want alpha.md", got)
+	}
+}

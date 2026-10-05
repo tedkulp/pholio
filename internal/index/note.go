@@ -44,7 +44,7 @@ func Parse(p string, contents []byte) Note {
 		Contents: string(contents),
 		Conflict: strings.Contains(base, ".sync-conflict-"),
 	}
-	var fence string // the opening fence while inside a code block
+	var fences Fences
 	s := n.Contents
 	for lineNo := 0; s != ""; lineNo++ {
 		var line string
@@ -55,17 +55,7 @@ func Parse(p string, contents []byte) Note {
 		}
 		line = strings.TrimSuffix(line, "\r")
 
-		if f := fenceOf(line); f != "" {
-			switch {
-			case fence == "":
-				fence = f
-				continue
-			case f[0] == fence[0] && len(f) >= len(fence) && strings.TrimSpace(strings.TrimLeft(line, " ")[len(f):]) == "":
-				fence = ""
-				continue
-			}
-		}
-		if fence != "" {
+		if fences.Code(line) {
 			continue
 		}
 		if h, ok := parseHeading(line); ok {
@@ -81,6 +71,29 @@ func Parse(p string, contents []byte) Note {
 		n.Links = appendLinks(n.Links, line, lineNo)
 	}
 	return n
+}
+
+// Fences follows fenced code blocks through a Note, line by line.
+type Fences struct {
+	open string // the opening fence while inside a code block
+}
+
+// Code reports whether line, the next line of the Note, is fenced code: a
+// fence line or a line inside a block. Lines must be fed in order from the
+// first, without their newline.
+func (f *Fences) Code(line string) bool {
+	line = strings.TrimSuffix(line, "\r")
+	if fe := fenceOf(line); fe != "" {
+		switch {
+		case f.open == "":
+			f.open = fe
+			return true
+		case fe[0] == f.open[0] && len(fe) >= len(f.open) && strings.TrimSpace(strings.TrimLeft(line, " ")[len(fe):]) == "":
+			f.open = ""
+			return true
+		}
+	}
+	return f.open != ""
 }
 
 // fenceOf returns the run of ``` or ~~~ (3 or more) that opens line after up

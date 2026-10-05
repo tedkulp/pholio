@@ -110,8 +110,10 @@ func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
 	return file, e, nil
 }
 
-// newEditor makes the editor pane over e with the configured settings.
+// newEditor makes the editor pane over e with the configured settings,
+// and hooks the Task rules (tasks.go) into e.
 func (m Model) newEditor(e *engine.Engine) editor.Model {
+	e.Fixup = m.taskRules()
 	return editor.New(e, m.rel(e.Path)).SetWrap(m.wrap).SetConceal(m.conceal)
 }
 

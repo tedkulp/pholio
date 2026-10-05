@@ -64,13 +64,11 @@ func vaultPath(typed string, note bool) (string, error) {
 	if rel == "." || !inVault(rel) {
 		return "", fmt.Errorf("not a path in the Vault: %q", typed)
 	}
-	if note && !isNote(rel) {
+	if note && !index.IsNote(rel) {
 		rel += ".md"
 	}
 	return rel, nil
 }
-
-func isNote(rel string) bool { return strings.HasSuffix(strings.ToLower(rel), ".md") }
 
 // openNew opens the Note :new names: as it is when it exists, else as an
 // unsaved buffer.
@@ -194,7 +192,7 @@ func (m Model) move(from, typed string) (Model, tea.Cmd) {
 		return m.say(err.Error(), true), nil
 	}
 	fromRel := m.vaultRel(from)
-	toRel, err := vaultPath(typed, !info.IsDir() && isNote(fromRel))
+	toRel, err := vaultPath(typed, !info.IsDir() && index.IsNote(fromRel))
 	if err != nil {
 		return m.say(err.Error(), true), nil
 	}
@@ -210,7 +208,7 @@ func (m Model) move(from, typed string) (Model, tea.Cmd) {
 	}
 
 	ix := m.index()
-	if ix == nil || (!info.IsDir() && !isNote(fromRel)) {
+	if ix == nil || (!info.IsDir() && !index.IsNote(fromRel)) {
 		return m.moveFiles(from, to, nil, nil), nil
 	}
 	if !m.indexReady() {
@@ -369,7 +367,7 @@ func (m Model) confirmDelete(p string) (Model, tea.Cmd) {
 	switch {
 	case info.IsDir():
 		q = fmt.Sprintf("Delete %s/ (%s)? y/N", rel, plural(m.countFiles(p), "file"))
-	case isNote(rel) && m.indexReady():
+	case index.IsNote(rel) && m.indexReady():
 		m = m.syncIndex()
 		q = fmt.Sprintf("Delete %s (%s)? y/N", rel, plural(len(m.index().Backlinks(rel)), "Backlink"))
 	}

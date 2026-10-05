@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 )
 
@@ -44,7 +45,7 @@ func FindVault(fsys seam.FS, d Dirs, home, arg, configured string) (Target, erro
 	switch {
 	case err == nil && info.IsDir():
 		return Target{Vault: arg}, nil
-	case err != nil && !strings.EqualFold(filepath.Ext(arg), ".md"):
+	case err != nil && !index.IsNote(arg):
 		return Target{}, fmt.Errorf("%s: no such file or folder", arg)
 	}
 	t := Target{File: arg}

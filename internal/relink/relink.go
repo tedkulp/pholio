@@ -39,7 +39,7 @@ func newVault(paths []string) vault {
 	v := vault{notes: map[string]bool{}, byName: map[string][]string{}}
 	for _, p := range paths {
 		v.notes[p] = true
-		k := strings.ToLower(strings.TrimSuffix(path.Base(p), ".md"))
+		k := strings.ToLower(index.NoteName(p))
 		v.byName[k] = append(v.byName[k], p)
 	}
 	return v
@@ -134,7 +134,7 @@ func (v vault) text(from, target string, l index.Link) string {
 // Note at p: its name, then with as many of its folders as it takes. The
 // full path is the fallback.
 func (v vault) shortest(p string) string {
-	full := strings.TrimSuffix(p, ".md")
+	full := index.TrimNoteExt(p)
 	segs := strings.Split(full, "/")
 	for i := len(segs) - 1; i >= 0; i-- {
 		cand := strings.Join(segs[i:], "/")

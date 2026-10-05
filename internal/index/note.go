@@ -40,7 +40,7 @@ func Parse(p string, contents []byte) Note {
 	base := path.Base(p)
 	n := Note{
 		Path:     p,
-		Name:     strings.TrimSuffix(base, ".md"),
+		Name:     TrimNoteExt(base),
 		Contents: string(contents),
 		Conflict: strings.Contains(base, ".sync-conflict-"),
 	}

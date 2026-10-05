@@ -194,7 +194,7 @@ func (ix *Index) walk(ctx context.Context, rel string, out chan<- string) error 
 			}
 			continue
 		}
-		if !strings.HasSuffix(name, ".md") {
+		if !IsNote(name) {
 			continue
 		}
 		select {
@@ -292,7 +292,7 @@ func (ix *Index) rel(p string) (string, bool) {
 		return "", false
 	}
 	r = filepath.ToSlash(r)
-	if r == ".." || strings.HasPrefix(r, "../") || !strings.HasSuffix(r, ".md") {
+	if r == ".." || strings.HasPrefix(r, "../") || !IsNote(r) {
 		return "", false
 	}
 	for seg := range strings.SplitSeq(r, "/") {

@@ -139,7 +139,7 @@ func (m Model) dangling(target string) (Model, tea.Cmd) {
 	if m.session != nil {
 		folder = m.session.Config.NewNoteFolder
 	}
-	p := path.Join(folder, strings.TrimSuffix(target, ".md")+".md")
+	p := path.Join(folder, index.TrimNoteExt(target)+".md")
 	if !inVault(p) {
 		return m.say("Link leaves the Vault: "+target, true), nil
 	}

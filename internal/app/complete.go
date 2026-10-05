@@ -128,7 +128,7 @@ func (m Model) acceptCompletion(n index.Note) Model {
 	e := m.ed.Engine()
 	target := n.Name
 	if r, ok := m.index().Resolve(m.rel(m.path()), index.Link{Kind: index.WikiLink, Target: n.Name}); !ok || r.Path != n.Path {
-		target = strings.TrimSuffix(n.Path, ".md")
+		target = index.TrimNoteExt(n.Path)
 	}
 	for e.Cur.Col > m.complete.start.Col {
 		e.Feed("backspace")

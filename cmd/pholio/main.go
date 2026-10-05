@@ -4,12 +4,14 @@ package main
 import (
 	"fmt"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/app"
 	"github.com/tedkulp/pholio/internal/config"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/watch"
 )
@@ -50,9 +52,12 @@ func run(args []string) error {
 		today := clock.Now().Add(-s.Config.DayStartsAt).Format("2006-01-02")
 		path = filepath.Join(s.Target.Vault, s.Config.DailyFolder, today+".md")
 	}
-	vault, watchErr := startWatching(fsys, s.Target.Vault)
+	// The index scans in the background once the program starts (app.Init).
+	ix := index.New(fsys, s.Target.Vault, index.WithTemplatesDir(pathpkg.Dir(s.Config.DailyTemplate)))
+	vault, watchErr := startWatching(fsys, s.Target.Vault, ix)
 	defer func() { _ = vault.Close() }()
-	m, err := app.New(app.Deps{FS: fsys, Clock: clock, Watch: vault}, path)
+	deps := app.Deps{FS: fsys, Clock: clock, Watch: vault, Opener: seam.SystemOpener{}, Index: ix}
+	m, err := app.New(deps, path)
 	if err != nil {
 		return err
 	}
@@ -68,9 +73,9 @@ func run(args []string) error {
 // fails (macOS can run out of descriptors even after raising the limit),
 // the Vault still rescans on terminal focus and the error is returned for
 // a warning.
-func startWatching(fsys seam.FS, root string) (*watch.Vault, error) {
+func startWatching(fsys seam.FS, root string, ix *index.Index) (*watch.Vault, error) {
 	_ = watch.RaiseFileLimit()
-	v := watch.New(fsys, root, watch.Options{})
+	v := watch.New(fsys, root, watch.Options{Index: ix})
 	w, err := watch.NewFSNotify()
 	if err == nil {
 		err = v.Watch(w)

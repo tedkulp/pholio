@@ -23,6 +23,10 @@ const (
 	actQuit          action = "quit"
 	actCycleTheme    action = "cycle-theme"
 	actReload        action = "reload"
+	actFollowLink    action = "follow-link"
+	actGoToLink      action = "go-to-link"
+	actJumpBack      action = "jump-back"
+	actJumpForward   action = "jump-forward"
 )
 
 // scope is where a binding fires.
@@ -39,6 +43,10 @@ const (
 	// scopeSidebar keys fire when the sidebar has focus, before the tree's
 	// own navigation keys.
 	scopeSidebar
+	// scopeNormal keys fire in the editor in normal mode with nothing
+	// pending, before the engine sees them. (gd, two keys, is matched in
+	// Model.key.)
+	scopeNormal
 )
 
 // binding maps a key in a scope to an action. help is the leader hint.
@@ -66,6 +74,11 @@ var bindings = []binding{
 	{scopeSidebar, "esc", actFocusEditor, ""},
 	{scopeSidebar, "<", actSidebarNarrow, ""},
 	{scopeSidebar, ">", actSidebarWiden, ""},
+
+	{scopeNormal, "enter", actFollowLink, ""},
+	{scopeNormal, "ctrl+o", actJumpBack, ""},
+	{scopeNormal, "tab", actJumpForward, ""},
+	{scopeNormal, "ctrl+i", actJumpForward, ""},
 }
 
 // exCommands maps ":" commands to actions; the text after the name is the
@@ -91,6 +104,10 @@ func init() {
 		actQuit:          func(m Model, _ string) (Model, tea.Cmd) { return m.requestQuit() },
 		actCycleTheme:    func(m Model, _ string) (Model, tea.Cmd) { return m.cycleTheme(), nil },
 		actReload:        func(m Model, _ string) (Model, tea.Cmd) { return m.reload(), nil },
+		actFollowLink:    func(m Model, _ string) (Model, tea.Cmd) { return m.followOrMove() },
+		actGoToLink:      func(m Model, _ string) (Model, tea.Cmd) { return m.goToLink() },
+		actJumpBack:      func(m Model, _ string) (Model, tea.Cmd) { return m.jumpBack() },
+		actJumpForward:   func(m Model, _ string) (Model, tea.Cmd) { return m.jumpForward() },
 	}
 }
 

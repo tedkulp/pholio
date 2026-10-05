@@ -11,6 +11,7 @@ import (
 	"github.com/tedkulp/pholio/internal/config"
 	"github.com/tedkulp/pholio/internal/editor"
 	"github.com/tedkulp/pholio/internal/engine"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/sidebar"
 	"github.com/tedkulp/pholio/internal/theme"
@@ -23,6 +24,11 @@ type Deps struct {
 	Clock seam.Clock
 	// Watch, if set, reports changes made to the Vault outside pholio.
 	Watch *watch.Vault
+	// Opener opens http(s) URLs followed from a Note.
+	Opener seam.Opener
+	// Index, if set, is the Vault index. Init scans it in the background
+	// and the open buffer's edits are fed to it.
+	Index *index.Index
 }
 
 // focus is the pane that receives keys.
@@ -61,6 +67,10 @@ type Model struct {
 	problem bool   // the message reports a problem
 
 	confirming bool // the overwrite y/N prompt is up (disk.go)
+
+	jumps   jumplist // the session's Note history (jumplist.go)
+	fed     uint64   // the buffer version last fed to the index (index.go)
+	syncGen int      // the pending index feed; bumped to cancel it
 }
 
 // New opens the Note at path. A missing file opens as an empty buffer.
@@ -78,6 +88,7 @@ func New(deps Deps, path string) (Model, error) {
 	}
 	m.file = file
 	m.ed = m.newEditor(e)
+	m.fed = e.Buf.Version()
 	m.side = sidebar.New(deps.FS, m.vault).Reveal(path)
 	return m.relayout(), nil
 }
@@ -85,7 +96,7 @@ func New(deps Deps, path string) (Model, error) {
 // openEngine loads path, through a new noteFile, into a new engine wired
 // to the app's ex commands.
 func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
-	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, path: path}
+	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, index: m.deps.Index, path: path}
 	e, err := engine.Open(file, path)
 	if err != nil {
 		return nil, nil, err
@@ -111,8 +122,9 @@ func (m Model) rel(path string) string {
 	return filepath.Base(path)
 }
 
-// Init implements tea.Model: it starts listening for watcher Notices.
-func (m Model) Init() tea.Cmd { return m.listen() }
+// Init implements tea.Model: it starts listening for watcher Notices and
+// scanning the Vault index.
+func (m Model) Init() tea.Cmd { return tea.Batch(m.listen(), m.scanIndex()) }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -124,6 +136,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.side = m.side.Refresh()
 		if msg.Rescan || msg.Path == m.path() {
 			m = m.checkDisk()
+			if m.ed.Engine().Dirty { // the index read the file, not the buffer
+				m = m.syncIndex()
+			}
 		}
 		cmd = m.listen()
 	case tea.FocusMsg:
@@ -134,10 +149,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.checkDisk()
 	case tea.KeyPressMsg:
 		m, cmd = m.key(msg)
+		var sync tea.Cmd
+		m, sync = m.editedIndex()
+		cmd = tea.Batch(cmd, sync)
 	case tea.PasteMsg:
 		m, cmd = m.paste(msg)
+		var sync tea.Cmd
+		m, sync = m.editedIndex()
+		cmd = tea.Batch(cmd, sync)
 	case paletteMsg:
 		m = m.showPalette(msg.p, msg.on)
+	case indexReadyMsg:
+		m = m.indexScanned(msg)
+	case indexSyncMsg:
+		if msg.gen == m.syncGen {
+			m = m.syncIndex()
+		}
 	}
 	return m.relayout(), cmd
 }
@@ -174,6 +201,17 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 		return m.sidebarKey(name)
 	}
+	if m.normalIdle() {
+		if a, ok := lookup(scopeNormal, name); ok {
+			m.message, m.problem = "", false
+			return m.run(a, "")
+		}
+	}
+	if e := m.ed.Engine(); e.Mode == engine.Normal && e.PendingKeys() == "g" && name == "d" {
+		e.Feed("esc") // drop the pending g
+		m.message, m.problem = "", false
+		return m.run(actGoToLink, "")
+	}
 	return m.editorKey(msg)
 }
 
@@ -185,6 +223,13 @@ func (m Model) free() bool {
 	}
 	e := m.ed.Engine()
 	return e.Mode == engine.Normal && e.PendingKeys() == ""
+}
+
+// normalIdle reports whether the editor has focus in normal mode with
+// nothing pending: where scopeNormal keys fire.
+func (m Model) normalIdle() bool {
+	e := m.ed.Engine()
+	return !m.sidebarFocused() && e.Mode == engine.Normal && e.PendingKeys() == ""
 }
 
 func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {

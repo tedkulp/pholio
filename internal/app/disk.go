@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/watch"
 )
@@ -26,6 +27,7 @@ const overwritePrompt = "Changed on disk. Overwrite? y/N"
 type noteFile struct {
 	fs    seam.FS
 	watch *watch.Vault // nil when not watching
+	index *index.Index // nil without an index; told about every write
 	path  string
 
 	disk    [sha256.Size]byte
@@ -54,8 +56,14 @@ func (f *noteFile) WriteFile(name string, data []byte) error {
 		f.refused = true
 		return errChangedOnDisk
 	}
+	if err := f.fs.MkdirAll(filepath.Dir(name)); err != nil {
+		return err
+	}
 	if err := f.fs.WriteFile(name, data); err != nil {
 		return err
+	}
+	if f.index != nil { // the watcher drops the echo of our own write
+		f.index.Update(name, data)
 	}
 	if f.watch != nil {
 		f.watch.Wrote(name, data)

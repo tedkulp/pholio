@@ -15,11 +15,18 @@ type Mode int
 const (
 	Normal Mode = iota
 	Insert
+	Visual
+	VisualLine
+	Command // the ":" line
+	Search  // the "/" or "?" line
 )
 
 func (m Mode) String() string {
-	return [...]string{"NORMAL", "INSERT"}[m]
+	return [...]string{"NORMAL", "INSERT", "VISUAL", "V-LINE", "COMMAND", "SEARCH"}[m]
 }
+
+// visual reports whether m is Visual or VisualLine.
+func (m Mode) visual() bool { return m == Visual || m == VisualLine }
 
 // Engine is one editing session over a Buffer.
 type Engine struct {
@@ -28,8 +35,14 @@ type Engine struct {
 	Mode Mode
 	Msg  string
 
-	// Dirty is set by any change to the buffer.
+	// Path is the file being edited; "" for a buffer with no file.
+	Path string
+
+	// Dirty is set by any change to the buffer and cleared by :w.
 	Dirty bool
+
+	// Quit is set by :q, :wq and :q!. The host closes the editor.
+	Quit bool
 
 	// ListContinuation makes enter and o continue list items and Tasks.
 	ListContinuation bool
@@ -38,8 +51,14 @@ type Engine struct {
 	// ctrl+d/u/f/b know how far to scroll.
 	PageLines int
 
+	fs     FS
+	exCmds map[string]ExFunc
+
 	want     int // remembered display column (cells) for j/k; -1 = end of line
 	keptWant bool
+	anchor   Pos // the fixed end of a visual selection
+	cmd      cmdlineState
+	search   searchState
 	lastFind string // last f/t/F/T and its char, such as "f;"
 
 	keys     []string // pending normal-mode keys (the command being parsed)
@@ -81,7 +100,7 @@ func (e *Engine) PendingKeys() string { return strings.Join(e.keys, "") }
 
 // OperatorPending is true while d, c or y waits for its motion or object.
 func (e *Engine) OperatorPending() bool {
-	p, st := parse(e.keys)
+	p, st := parse(e.keys, e.Mode.visual())
 	return st == incomplete && p.op != ""
 }
 
@@ -116,8 +135,12 @@ func (e *Engine) Feed(k string) {
 	if e.recording && !e.replaying {
 		e.dot = append(e.dot, k)
 	}
-	if e.Mode == Insert {
+	switch e.Mode {
+	case Insert:
 		e.insertKey(k)
+		return
+	case Command, Search:
+		e.cmdKey(k)
 		return
 	}
 	if len(e.keys) == 0 {
@@ -133,7 +156,7 @@ func (e *Engine) Feed(k string) {
 // settle runs after each top-level key. It keeps the cursor legal and, once
 // the engine is back at rest in normal mode, commits the undo step.
 func (e *Engine) settle() {
-	if e.Mode != Normal {
+	if e.Mode != Normal && !e.Mode.visual() {
 		return
 	}
 	e.clampNormal()

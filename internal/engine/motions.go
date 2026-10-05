@@ -122,6 +122,7 @@ func init() {
 		"ctrl+d": page(1, 2), "ctrl+u": page(-1, 2),
 		"ctrl+f": page(1, 1), "ctrl+b": page(-1, 1),
 		"pgdown": page(1, 1), "pgup": page(-1, 1),
+		"n": searchMotion(false), "N": searchMotion(true),
 	}
 }
 

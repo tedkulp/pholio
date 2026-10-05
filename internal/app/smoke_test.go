@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"io"
 	"path/filepath"
 	"strings"
@@ -37,9 +38,10 @@ func newVTScreen() *vtScreen {
 }
 
 // update feeds the not-yet-seen tail of out (all output so far) and returns
-// the screen as plain text.
+// the screen as plain text. Like a tty with ONLCR set, it turns each "\n"
+// the renderer writes into "\r\n".
 func (s *vtScreen) update(out []byte) string {
-	_, _ = s.emu.Write(out[s.seen:])
+	_, _ = s.emu.Write(bytes.ReplaceAll(out[s.seen:], []byte("\n"), []byte("\r\n")))
 	s.seen = len(out)
 	return s.emu.String()
 }
@@ -59,6 +61,29 @@ func TestSmokeStartShowsNoteAndCtrlQQuits(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		s := scr.update(out)
 		return strings.Contains(s, "# Welcome to the basic Vault") && strings.Contains(s, "README.md")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestSmokeTypingEditsTheNote(t *testing.T) {
+	vault := testutil.CopyVault(t, "basic")
+	m, err := app.New(app.Deps{FS: seam.OSFS{}, Clock: seam.SystemClock{}}, filepath.Join(vault, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, m,
+		teatest.WithInitialTermSize(smokeW, smokeH),
+		teatest.WithProgramOptions(tea.WithColorProfile(colorprofile.Ascii)),
+	)
+	scr := newVTScreen()
+
+	tm.Type("dwiHello ")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEsc})
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		s := scr.update(out)
+		return strings.Contains(s, "Hello Welcome to the basic Vault") && strings.Contains(s, "NORMAL  README.md [+]")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})

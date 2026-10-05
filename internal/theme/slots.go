@@ -18,6 +18,7 @@ const (
 	UIModeCommand     Slot = "ui.mode_command"
 	UIMessage         Slot = "ui.message"
 	UIError           Slot = "ui.error"
+	UIEndOfBuffer     Slot = "ui.end_of_buffer"
 )
 
 // File-tree sidebar.

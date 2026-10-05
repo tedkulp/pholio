@@ -1,0 +1,8 @@
+# Welcome to the basic Vault
+
+This Note is a fixture for model tests.
+It has a [[link]] and a Task:
+
+- [ ] write the skeleton due:2026-10-10
+
+A long line that is wider than the narrow test terminal so the view has to clip it at the pane edge.

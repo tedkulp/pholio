@@ -1,9 +1,9 @@
-# Welcome to the basic Vault            
-                                        
-This Note is a fixture for model tests. 
-It has a [[link]] and a Task:           
-                                        
-- [ ] write the skeleton due:2026-10-10 
-                                        
-A long line that is wider than the      
+ 001               │# Welcome to the    
+   README          │basic Vault         
+                   │                    
+                   │This Note is a      
+                   │fixture for model   
+                   │tests.              
+                   │It has a [[link]]   
+                   │and a Task:         
  NORMAL  README.md                  1:1 

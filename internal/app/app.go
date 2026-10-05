@@ -2,8 +2,6 @@
 package app
 
 import (
-	"errors"
-	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -46,11 +44,12 @@ type Model struct {
 func New(deps Deps, path string) (Model, error) {
 	path = filepath.Clean(path)
 	file := &noteFile{fs: deps.FS, watch: deps.Watch, path: path}
-	data, err := file.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	e, err := engine.Open(file, path)
+	if err != nil {
 		return Model{}, err
 	}
-	ed := editor.New(engine.New(string(data)), filepath.Base(path))
+	e.Msg = "" // the startup message line is the app's
+	ed := editor.New(e, filepath.Base(path))
 	return Model{deps: deps, path: path, file: file, ed: ed, looks: defaultLooks()}, nil
 }
 
@@ -88,6 +87,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.message, m.problem = "", false
 			m.ed = m.ed.Update(msg)
 			m = m.askedToOverwrite()
+			if e := m.ed.Engine(); e.Quit {
+				e.Quit = false
+				return m, tea.Quit
+			}
 		}
 	case tea.PasteMsg:
 		m.ed = m.ed.Update(msg)
@@ -111,6 +114,13 @@ func (m Model) View() tea.View {
 	if m.h > 2 {
 		rows = append([]string{text}, rows...)
 		v.Cursor = cursor
+	}
+	// An open ":" or "/" line replaces the message line and takes the
+	// cursor.
+	if line, c, ok := m.ed.CmdLine(th, m.w); ok {
+		rows[len(rows)-1] = line
+		c.Y = m.h - 1
+		v.Cursor = c
 	}
 	rows = rows[max(0, len(rows)-m.h):]
 	v.SetContent(strings.Join(rows, "\n"))

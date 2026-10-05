@@ -1,0 +1,8 @@
+# Notes                                 
+See [[Other note]] and **bold** text.   
+Run `go test` or read [the              
+docs](https://example.com).             
+- [ ] call **Bob** due:2026-10-10 #work 
+~                                       
+ NORMAL  note.md                    1:1 
+cursor 0,0 block

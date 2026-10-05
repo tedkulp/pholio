@@ -72,6 +72,12 @@ func statusLine(m app.Model) string {
 
 func text(m app.Model) string { return m.Text() }
 
+// ex types a ":" command and enter.
+func ex(m app.Model, cmd string) app.Model {
+	m = typeKeys(m, ":"+cmd)
+	return press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+}
+
 func TestCleanBufferReloadsSilentlyKeepingTheCursorLine(t *testing.T) {
 	fsys := seamtest.NewMemFS(map[string]string{"/vault/a.md": "one\ntwo\nthree\n"})
 	m, w := watched(t, fsys)
@@ -98,7 +104,7 @@ func TestOwnWriteEchoIsNotAChange(t *testing.T) {
 	fsys := seamtest.NewMemFS(map[string]string{"/vault/a.md": "one\n"})
 	m, w := watched(t, fsys)
 	m = typeKeys(m, "x")
-	m = app.Save(m)
+	m = ex(m, "w")
 	w.Emit(seam.WatchEvent{Path: "/vault/a.md", Op: seam.OpWrite})
 	m = change(t, m, fsys, w, "external\n")
 	// Had the echo been taken as a change, u would undo to "ne".
@@ -126,6 +132,28 @@ func TestDirtyBufferWarnsAndKeepsEdits(t *testing.T) {
 	}
 }
 
+func TestEditBangReloadsFromDisk(t *testing.T) {
+	fsys := seamtest.NewMemFS(map[string]string{"/vault/a.md": "one\n"})
+	m, w := watched(t, fsys)
+	m = typeKeys(m, "x")
+	m = change(t, m, fsys, w, "theirs\n")
+
+	m = ex(m, "e!")
+
+	if got := text(m); got != "theirs\n" {
+		t.Errorf("buffer = %q", got)
+	}
+	if got := statusLine(m); strings.Contains(got, "[+]") || strings.Contains(got, "changed") {
+		t.Errorf("status line = %q", got)
+	}
+	// A later write goes straight through.
+	m = typeKeys(m, "x")
+	_ = ex(m, "w")
+	if b, _ := fsys.ReadFile("/vault/a.md"); string(b) != "heirs\n" {
+		t.Errorf("file = %q", b)
+	}
+}
+
 func TestWriteAfterExternalChangeAsksFirst(t *testing.T) {
 	for _, c := range []struct {
 		key  string
@@ -137,7 +165,7 @@ func TestWriteAfterExternalChangeAsksFirst(t *testing.T) {
 			m = typeKeys(m, "x")
 			m = change(t, m, fsys, w, "theirs\n")
 
-			m = app.Save(m)
+			m = ex(m, "w")
 			if got := messageLine(m); got != "Changed on disk. Overwrite? y/N" {
 				t.Fatalf("message = %q", got)
 			}
@@ -183,7 +211,7 @@ func TestDeletedWhileOpen(t *testing.T) {
 		t.Errorf("status line = %q", got)
 	}
 
-	m = app.Save(m)
+	m = ex(m, "w")
 	if b, err := fsys.ReadFile("/vault/a.md"); err != nil || string(b) != "one\n" {
 		t.Errorf("file = %q, %v; want it written back", b, err)
 	}

@@ -112,11 +112,12 @@ func New(deps Deps, path string) (Model, error) {
 // openEngine loads path, through a new noteFile, into a new engine wired
 // to the app's ex commands.
 func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
-	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, index: m.deps.Index, path: path}
+	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, index: m.deps.Index, opening: path}
 	e, err := engine.Open(file, path)
 	if err != nil {
 		return nil, nil, err
 	}
+	file.e = e
 	e.Msg = "" // the message line is the app's
 	m.registerEx(e)
 	return file, e, nil
@@ -130,7 +131,7 @@ func (m Model) newEditor(e *engine.Engine) editor.Model {
 }
 
 // path is the open Note's path.
-func (m Model) path() string { return m.file.path }
+func (m Model) path() string { return m.file.path() }
 
 // rel is path relative to the Vault, for display.
 func (m Model) rel(path string) string {

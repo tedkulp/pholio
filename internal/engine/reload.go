@@ -7,6 +7,18 @@ import "strings"
 // back. The cursor keeps its line and column, clamped to the new text, the
 // engine returns to normal mode and the buffer is clean.
 func (e *Engine) Reload(text string) {
+	e.replace(text)
+	e.MarkSaved()
+}
+
+// Replace is Reload for text that is not what is on disk, such as Links
+// rewritten into an unsaved buffer: the buffer is left dirty.
+func (e *Engine) Replace(text string) {
+	e.replace(text)
+	e.Dirty = e.head() != e.saved
+}
+
+func (e *Engine) replace(text string) {
 	e.commit()
 	e.Mode, e.keys, e.recording = Normal, nil, false
 	old := strings.TrimSuffix(e.Buf.String(), "\n")
@@ -19,5 +31,4 @@ func (e *Engine) Reload(text string) {
 		e.push(c)
 	}
 	e.SetCursor(e.Cur)
-	e.MarkSaved()
 }

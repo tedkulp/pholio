@@ -286,7 +286,7 @@ func (m Model) moveFiles(from, to string, notes []index.Note, moves map[string]s
 	}
 	if p, ok := movedPath(m.path(), from, to); ok {
 		e := m.ed.Engine()
-		m.file.path, e.Path = p, p
+		e.Path = p
 		m.ed = m.newEditor(e)
 	}
 	m.jumps = m.jumps.moved(from, to)
@@ -326,8 +326,7 @@ func (m Model) rewrite(edits []relink.Edit, links int) Model {
 		if p == m.path() {
 			e := m.ed.Engine()
 			if e.Dirty {
-				e.Reload(ed.Contents)
-				e.Dirty = true
+				e.Replace(ed.Contents)
 				m = m.syncIndex()
 				continue
 			}

@@ -46,6 +46,6 @@ func (m Model) editNote(path string, buffer func(*engine.Engine) error, disk fun
 // without touching the open Note's disk state.
 func (m Model) otherFile() *noteFile {
 	f := *m.file
-	f.path = ""
+	f.e, f.opening = nil, ""
 	return &f
 }

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/tedkulp/pholio/internal/engine"
 	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/watch"
@@ -28,7 +29,11 @@ type noteFile struct {
 	fs    seam.FS
 	watch *watch.Vault // nil when not watching
 	index *index.Index // nil without an index; told about every write
-	path  string
+	// e is the open Note's engine, once it exists. Its Path is the Note's
+	// path: the one copy, followed by renames and :w <name>. Until e is
+	// set (while the engine opens the Note), opening is the path.
+	e       *engine.Engine
+	opening string
 
 	disk    [sha256.Size]byte
 	exists  bool // the file was on disk when last read or written
@@ -37,11 +42,23 @@ type noteFile struct {
 	refused bool // a write was refused because of stale; the app asks
 }
 
+// path is the Note's path; "" for a buffer with no file, and for a file
+// that writes other Notes (see otherFile).
+func (f *noteFile) path() string {
+	if f.e == nil {
+		return f.opening
+	}
+	if f.e.Path == "" {
+		return ""
+	}
+	return filepath.Clean(f.e.Path)
+}
+
 // ReadFile reads name. Reading the Note itself (opening it, or :e!)
 // records what is on disk and clears every warning.
 func (f *noteFile) ReadFile(name string) ([]byte, error) {
 	data, err := f.fs.ReadFile(name)
-	if filepath.Clean(name) == f.path && (err == nil || errors.Is(err, fs.ErrNotExist)) {
+	if p := f.path(); p != "" && filepath.Clean(name) == p && (err == nil || errors.Is(err, fs.ErrNotExist)) {
 		f.disk, f.exists = sha256.Sum256(data), err == nil
 		f.stale, f.deleted = false, false
 	}
@@ -51,7 +68,8 @@ func (f *noteFile) ReadFile(name string) ([]byte, error) {
 // WriteFile writes name. A write over the Note while it is stale is
 // refused with errChangedOnDisk until the user confirms.
 func (f *noteFile) WriteFile(name string, data []byte) error {
-	own := filepath.Clean(name) == f.path
+	p := f.path()
+	own := p != "" && filepath.Clean(name) == p
 	if own && f.stale {
 		f.refused = true
 		return errChangedOnDisk
@@ -112,7 +130,7 @@ func (m Model) WithWatchError(err error) Model {
 // gets a warning, and a vanished file marks the buffer [deleted].
 func (m Model) checkDisk() Model {
 	f, e := m.file, m.ed.Engine()
-	data, err := f.fs.ReadFile(f.path)
+	data, err := f.fs.ReadFile(f.path())
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		if f.exists && !f.deleted {

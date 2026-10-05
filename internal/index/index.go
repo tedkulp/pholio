@@ -15,13 +15,16 @@ import (
 // Index is the in-memory Vault index. It is safe for concurrent use: Scan
 // runs in the background while the UI queries and updates it.
 type Index struct {
-	fsys         seam.FS
-	root         string
-	templatesDir string
+	fsys seam.FS
+	root string
 
-	mu     sync.RWMutex
-	notes  map[string]*Note    // by Vault-relative path
-	byName map[string][]string // lowercased Name -> paths, conflicts excluded
+	mu sync.RWMutex
+	// templatesDir is the folder of daily_template. Its Tasks are left out
+	// of Tasks, as are those under templates/; "" when it is templates/ or
+	// the Vault root.
+	templatesDir string
+	notes        map[string]*Note    // by Vault-relative path
+	byName       map[string][]string // lowercased Name -> paths, conflicts excluded
 	// While a Scan runs, touched records paths changed through Update or
 	// Remove, so the Scan's result doesn't overwrite them.
 	scanning int
@@ -35,21 +38,40 @@ type Index struct {
 // Option configures an Index.
 type Option func(*Index)
 
-// WithTemplatesDir sets the Vault-relative folder whose Notes' Tasks are left
-// out of Tasks. The default is "templates".
+// templatesFolder is the folder whose Tasks never count, whatever
+// daily_template says.
+const templatesFolder = "templates"
+
+// WithTemplatesDir sets the Vault-relative folder of daily_template. Its
+// Notes' Tasks are left out of Tasks, as are those under templates/.
 func WithTemplatesDir(dir string) Option {
-	return func(ix *Index) { ix.templatesDir = strings.Trim(filepath.ToSlash(dir), "/") }
+	return func(ix *Index) { ix.templatesDir = cleanDir(dir) }
+}
+
+// SetTemplatesDir changes the folder WithTemplatesDir set, after the config
+// was reloaded.
+func (ix *Index) SetTemplatesDir(dir string) {
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	ix.templatesDir = cleanDir(dir)
+}
+
+func cleanDir(dir string) string {
+	dir = strings.Trim(path.Clean(filepath.ToSlash(dir)), "/")
+	if dir == "." || dir == templatesFolder {
+		return ""
+	}
+	return dir
 }
 
 // New returns an empty Index of the Vault at root. Call Scan to fill it.
 func New(fsys seam.FS, root string, opts ...Option) *Index {
 	ix := &Index{
-		fsys:         fsys,
-		root:         root,
-		templatesDir: "templates",
-		notes:        map[string]*Note{},
-		byName:       map[string][]string{},
-		done:         make(chan struct{}),
+		fsys:   fsys,
+		root:   root,
+		notes:  map[string]*Note{},
+		byName: map[string][]string{},
+		done:   make(chan struct{}),
 	}
 	for _, o := range opts {
 		o(ix)
@@ -302,8 +324,11 @@ func (ix *Index) Tasks() []Task {
 	return out
 }
 
+// inTemplates reports whether p is under templates/ or daily_template's
+// folder. Callers hold mu.
 func (ix *Index) inTemplates(p string) bool {
-	return ix.templatesDir != "" && strings.HasPrefix(p, ix.templatesDir+"/")
+	return strings.HasPrefix(p, templatesFolder+"/") ||
+		ix.templatesDir != "" && strings.HasPrefix(p, ix.templatesDir+"/")
 }
 
 // Notes returns every Note, sorted by path. Conflict Notes are included.

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path"
 	"strings"
 
 	"github.com/tedkulp/pholio/internal/config"
@@ -32,6 +33,7 @@ func (m Model) WithSession(s config.Session) Model {
 	m.wrap, m.conceal = s.Config.Wrap, s.Config.Conceal
 	m.noMouse = !s.Config.Mouse
 	m.vault = s.Target.Vault
+	m.followTemplates()
 	m.ed = m.newEditor(m.ed.Engine())
 	m.side = sidebar.New(m.deps.FS, m.vault).Reveal(m.path())
 	store := config.NewStateStore(m.deps.FS, s.Dirs)
@@ -88,6 +90,7 @@ func (m Model) reload() Model {
 		cfg, msg := s.Reload(m.deps.FS)
 		s.Config, configMsg = cfg, msg
 		m.session = &s
+		m.followTemplates()
 		m.wrap, m.conceal = cfg.Wrap, cfg.Conceal
 		m.noMouse = !cfg.Mouse
 		m.ed = m.ed.SetWrap(cfg.Wrap).SetConceal(cfg.Conceal)
@@ -101,6 +104,14 @@ func (m Model) reload() Model {
 		m.message = "reloaded config and theme"
 	}
 	return m
+}
+
+// followTemplates tells the index which folder daily_template is in, so
+// its Tasks are left out along with those under templates/.
+func (m Model) followTemplates() {
+	if ix := m.index(); ix != nil && m.session != nil {
+		ix.SetTemplatesDir(path.Dir(m.session.Config.DailyTemplate))
+	}
 }
 
 func joinMessages(msgs ...string) string {

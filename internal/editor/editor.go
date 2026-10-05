@@ -24,8 +24,9 @@ type spot struct{ line, row int }
 // so treat a Model as a handle: use the value Update returns.
 type Model struct {
 	e    *engine.Engine
-	name string // file name for the status line
-	w, h int    // pane size in cells, status line not included
+	name string   // file name for the status line
+	tags []string // shown after the name, such as "[deleted]"
+	w, h int      // pane size in cells, status line not included
 	wrap bool
 
 	top  spot // first visible row
@@ -39,6 +40,13 @@ func New(e *engine.Engine, name string) Model {
 
 // Engine is the engine the pane edits.
 func (m Model) Engine() *engine.Engine { return m.e }
+
+// SetTags sets the markers shown after the file name on the status line,
+// such as "[deleted]". No tags clears them.
+func (m Model) SetTags(tags ...string) Model {
+	m.tags = tags
+	return m
+}
 
 // SetSize sets the text area to w×h cells.
 func (m Model) SetSize(w, h int) Model {
@@ -248,6 +256,9 @@ func (m Model) StatusLine(th theme.Theme, w int) string {
 		th.Style(theme.UIStatusFile).Render(" "+m.name)
 	if m.e.Dirty {
 		left += th.Style(theme.UIStatusDirty).Render(" [+]")
+	}
+	for _, t := range m.tags {
+		left += th.Style(theme.UIStatusDirty).Render(" " + t)
 	}
 	if pk := m.e.PendingKeys(); pk != "" {
 		left += bar.Render("  " + pk)

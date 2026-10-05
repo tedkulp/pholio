@@ -11,6 +11,7 @@ import (
 	"github.com/tedkulp/pholio/internal/app"
 	"github.com/tedkulp/pholio/internal/config"
 	"github.com/tedkulp/pholio/internal/seam"
+	"github.com/tedkulp/pholio/internal/watch"
 )
 
 func main() {
@@ -49,10 +50,30 @@ func run(args []string) error {
 		today := clock.Now().Add(-s.Config.DayStartsAt).Format("2006-01-02")
 		path = filepath.Join(s.Target.Vault, s.Config.DailyFolder, today+".md")
 	}
-	m, err := app.New(app.Deps{FS: fsys, Clock: clock}, path)
+	vault, watchErr := startWatching(fsys, s.Target.Vault)
+	defer func() { _ = vault.Close() }()
+	m, err := app.New(app.Deps{FS: fsys, Clock: clock, Watch: vault}, path)
 	if err != nil {
 		return err
 	}
-	_, err = tea.NewProgram(m.WithSession(s)).Run()
+	m = m.WithSession(s)
+	if watchErr != nil {
+		m = m.WithWatchError(watchErr)
+	}
+	_, err = tea.NewProgram(m).Run()
 	return err
+}
+
+// startWatching watches the Vault for changes made outside pholio. If that
+// fails (macOS can run out of descriptors even after raising the limit),
+// the Vault still rescans on terminal focus and the error is returned for
+// a warning.
+func startWatching(fsys seam.FS, root string) (*watch.Vault, error) {
+	_ = watch.RaiseFileLimit()
+	v := watch.New(fsys, root, watch.Options{})
+	w, err := watch.NewFSNotify()
+	if err == nil {
+		err = v.Watch(w)
+	}
+	return v, err
 }

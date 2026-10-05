@@ -182,6 +182,16 @@ func TestStatusLineShowsPendingKeysAndAnUnderlineCursor(t *testing.T) {
 	golden.RequireEqual(t, screen(m, 30))
 }
 
+func TestStatusLineShowsTagsAfterTheName(t *testing.T) {
+	m := open("hello\n", 40, 1).SetTags("[deleted]")
+
+	got := ansi.Strip(m.StatusLine(th, 40))
+
+	if !strings.HasPrefix(got, " NORMAL  note.md [deleted]") {
+		t.Fatalf("status line = %q", got)
+	}
+}
+
 func TestStatusLineKeepsLineAndColumnWhenNarrow(t *testing.T) {
 	m := open("hello\n", 12, 1)
 

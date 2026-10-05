@@ -2,8 +2,6 @@
 package app
 
 import (
-	"errors"
-	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -15,18 +13,22 @@ import (
 	"github.com/tedkulp/pholio/internal/engine"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/theme"
+	"github.com/tedkulp/pholio/internal/watch"
 )
 
 // Deps are the injected seams the app reaches the outside world through.
 type Deps struct {
 	FS    seam.FS
 	Clock seam.Clock
+	// Watch, if set, reports changes made to the Vault outside pholio.
+	Watch *watch.Vault
 }
 
 // Model is the root model: for now, one editor pane over one Note.
 type Model struct {
 	deps Deps
 	path string
+	file *noteFile // shared by copies of the Model, like the engine
 	ed   editor.Model
 	w, h int
 
@@ -34,20 +36,25 @@ type Model struct {
 	looks   looks
 	message string // shown on the message line until the next key
 	problem bool   // the message reports a problem
+
+	confirming bool // the overwrite y/N prompt is up
 }
 
 // New opens the Note at path. A missing file opens as an empty buffer.
 func New(deps Deps, path string) (Model, error) {
-	data, err := deps.FS.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	path = filepath.Clean(path)
+	file := &noteFile{fs: deps.FS, watch: deps.Watch, path: path}
+	e, err := engine.Open(file, path)
+	if err != nil {
 		return Model{}, err
 	}
-	ed := editor.New(engine.New(string(data)), filepath.Base(path))
-	return Model{deps: deps, path: path, ed: ed, looks: defaultLooks()}, nil
+	e.Msg = "" // the startup message line is the app's
+	ed := editor.New(e, filepath.Base(path))
+	return Model{deps: deps, path: path, file: file, ed: ed, looks: defaultLooks()}, nil
 }
 
-// Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+// Init implements tea.Model: it starts listening for watcher Notices.
+func (m Model) Init() tea.Cmd { return m.listen() }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -55,7 +62,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 		m.ed = m.ed.SetSize(m.w, m.h-2)
+	case noticeMsg:
+		if msg.Rescan || msg.Path == m.path {
+			m = m.checkDisk()
+		}
+		return m, m.listen()
+	case tea.FocusMsg:
+		if m.deps.Watch != nil {
+			m.deps.Watch.Rescan()
+		}
+		m = m.checkDisk()
 	case tea.KeyPressMsg:
+		if m.confirming && msg.String() != "ctrl+q" {
+			return m.answerOverwrite(msg), nil
+		}
 		switch msg.String() {
 		case "ctrl+q":
 			return m, tea.Quit
@@ -66,6 +86,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.message, m.problem = "", false
 			m.ed = m.ed.Update(msg)
+			m = m.askedToOverwrite()
 			if e := m.ed.Engine(); e.Quit {
 				e.Quit = false
 				return m, tea.Quit
@@ -82,12 +103,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
+	v.ReportFocus = true
 	if m.w <= 0 || m.h <= 0 {
 		return v
 	}
 	th := m.looks.theme
-	text, cursor := m.ed.View(th)
-	rows := []string{m.ed.StatusLine(th, m.w), m.messageLine()}
+	ed := m.ed.SetTags(m.file.tags()...)
+	text, cursor := ed.View(th)
+	rows := []string{ed.StatusLine(th, m.w), m.messageLine()}
 	if m.h > 2 {
 		rows = append([]string{text}, rows...)
 		v.Cursor = cursor

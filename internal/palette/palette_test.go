@@ -264,3 +264,20 @@ func TestGeometryIsTopAnchoredAndCentred(t *testing.T) {
 		t.Errorf("Geometry(50, 10) = x %d, %dx%d", x, w, h)
 	}
 }
+
+func TestMarksHighlightPartsOfAnUnselectedRow(t *testing.T) {
+	th := theme.Default()
+	p := palette.New("Search", palette.Type).SetItems([]palette.Item{
+		{Text: "first row", Detail: "a.md:1"},
+		{Text: "find the needle here", Detail: "b.md:2", Marks: [][2]int{{9, 15}}},
+	})
+
+	box, _, _, _ := p.View(th, 60, 24)
+
+	if want := th.Style(theme.MarkdownSearch).Render("needle"); !strings.Contains(box, want) {
+		t.Errorf("view lacks the highlighted %q:\n%q", want, box)
+	}
+	if got := ansi.Strip(box); !strings.Contains(got, "find the needle here") {
+		t.Errorf("view lost the row's text:\n%s", got)
+	}
+}

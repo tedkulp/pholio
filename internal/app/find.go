@@ -60,7 +60,7 @@ func (m Model) findNote(arg string) (Model, tea.Cmd) {
 		}).
 		WithQuery(query)
 	m = m.showPalette(p, onFind)
-	m.overlay.refresh = refreshFind
+	m.overlay.ready = refreshFind
 	return refreshFind(m), nil
 }
 
@@ -131,13 +131,4 @@ func (m Model) noteItem(p string) (it palette.Item, ok bool) {
 	n, ok := m.index().Note(rel)
 	it.Detail = n.Title
 	return it, ok
-}
-
-// refreshPickers brings the open palette and the [[ popup up to date once
-// the index has scanned.
-func (m Model) refreshPickers() Model {
-	if m.overlay != nil && m.overlay.refresh != nil {
-		m = m.overlay.refresh(m)
-	}
-	return m.syncCompletion(false)
 }

@@ -77,8 +77,13 @@ func (m Model) ensureDaily(day time.Time) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("creating Daily Note %s: %w", day.Format(dates.ISO), err)
 	}
-	if data != nil && m.deps.Watch != nil {
-		m.deps.Watch.Wrote(path, data)
+	if data != nil {
+		if m.deps.Watch != nil {
+			m.deps.Watch.Wrote(path, data)
+		}
+		if ix := m.index(); ix != nil {
+			ix.Update(path, data)
+		}
 	}
 	return path, nil
 }
@@ -86,17 +91,10 @@ func (m Model) ensureDaily(day time.Time) (string, error) {
 // openDaily (spc d, :today, :daily) opens day's Daily Note, creating it
 // from the Template once the open buffer has been dealt with.
 func (m Model) openDaily(day time.Time) (Model, tea.Cmd) {
-	path := m.dailyNotes().Path(day)
-	if path == m.path() {
-		m.focus = focusEditor
-		return m, nil
-	}
-	return m.unlessDirty(saveBeforeSwitch, func(m Model) (Model, tea.Cmd) {
-		if _, err := m.ensureDaily(day); err != nil {
-			return m.say(err.Error(), true), nil
-		}
-		return m.switchTo(path), nil
-	})
+	return m.openThen(m.dailyNotes().Path(day), func(m Model) error {
+		_, err := m.ensureDaily(day)
+		return err
+	}, nil)
 }
 
 // stepDaily ([d, ]d) moves to the nearest existing Daily Note before

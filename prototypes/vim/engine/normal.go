@@ -236,9 +236,13 @@ func init() {
 			return e.find(name, arg, max(n, 1), false)
 		}
 	}
-	page := func(dir int) motionFn {
+	page := func(dir, div int) motionFn {
 		return func(e *Engine, n int, _ string) (Pos, kind, bool) {
-			t := max(0, min(e.Cur.Line+dir*max(e.PageLines/2, 1), e.Buf.LineCount()-1))
+			step := max(e.PageLines/div, 1)
+			if div == 1 {
+				step = max(e.PageLines-2, 1) // ctrl+f/b keep two lines of overlap
+			}
+			t := max(0, min(e.Cur.Line+dir*max(n, 1)*step, e.Buf.LineCount()-1))
 			return Pos{t, firstNonBlank(e.line(t))}, lines, true
 		}
 	}
@@ -307,7 +311,8 @@ func init() {
 			p, ok := e.searchFrom(e.Cur, !e.searchBack, max(n, 1))
 			return p, excl, ok
 		},
-		"ctrl+d": page(1), "ctrl+u": page(-1),
+		"ctrl+d": page(1, 2), "ctrl+u": page(-1, 2),
+		"ctrl+f": page(1, 1), "ctrl+b": page(-1, 1), "pgdown": page(1, 1), "pgup": page(-1, 1),
 	}
 }
 

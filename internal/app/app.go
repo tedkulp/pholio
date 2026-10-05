@@ -185,7 +185,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case indexReadyMsg:
 		m = m.indexScanned(msg)
 	case grepTickMsg:
-		m = m.grepTick(msg)
+		m, cmd = m.grepTick(msg)
+	case grepResultMsg:
+		m = m.grepResult(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()

@@ -140,3 +140,63 @@ func TestGrepStopsAt200Results(t *testing.T) {
 		t.Errorf("no sign of the limit:\n%s", s)
 	}
 }
+
+// msgsOf runs cmd and every command batched in it, returning their
+// messages.
+func msgsOf(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		var out []tea.Msg
+		for _, c := range batch {
+			out = append(out, msgsOf(c)...)
+		}
+		return out
+	}
+	if msg == nil {
+		return nil
+	}
+	return []tea.Msg{msg}
+}
+
+// update delivers each message in turn, collecting the commands returned.
+func update(m app.Model, msgs []tea.Msg) (app.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	for _, msg := range msgs {
+		next, cmd := m.Update(msg)
+		m = next.(app.Model)
+		cmds = append(cmds, cmd)
+	}
+	return m, tea.Batch(cmds...)
+}
+
+func TestGrepRunsOffTheUpdateLoopAndDropsStaleResults(t *testing.T) {
+	m, _ := linked(t, "index.md")
+	m = resize(typeKeys(m, " /bet"), 100, 30)
+	next, tick := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	m = next.(app.Model)
+
+	m, search := update(m, msgsOf(tick))
+
+	if s := screen(m); strings.Contains(s, "index.md:4") {
+		t.Fatalf("the search ran inside Update:\n%s", s)
+	}
+	if search == nil {
+		t.Fatal("the debounce tick started no search")
+	}
+	results := msgsOf(search)
+	m = press(m, tea.KeyPressMsg{Code: 'x', Text: "x"}) // the query is now "betax"
+	m, _ = update(m, results)
+	if s := screen(m); strings.Contains(s, "index.md:4") {
+		t.Errorf("results for the old query were shown:\n%s", s)
+	}
+
+	m = press(m, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	next, tick = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	m = drive(t, next.(app.Model), tick)
+	if s := screen(m); !strings.Contains(s, "index.md:4") {
+		t.Errorf("results for %q never arrived:\n%s", "bet", s)
+	}
+}

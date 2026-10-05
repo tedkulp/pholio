@@ -86,10 +86,14 @@ func (m Model) openNote(path string) (Model, tea.Cmd) {
 		m.focus = focusEditor
 		return m, nil
 	}
-	return m.unlessDirty("Save changes to %s? y save · n discard · esc cancel", func(m Model) (Model, tea.Cmd) {
+	return m.unlessDirty(saveBeforeSwitch, func(m Model) (Model, tea.Cmd) {
 		return m.switchTo(path), nil
 	})
 }
+
+// saveBeforeSwitch asks about a dirty buffer before another Note replaces
+// it.
+const saveBeforeSwitch = "Save changes to %s? y save · n discard · esc cancel"
 
 // switchTo replaces the editor's buffer with the Note at path.
 func (m Model) switchTo(path string) Model {

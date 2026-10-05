@@ -50,10 +50,11 @@ type Model struct {
 	focus  focus
 	state  *config.StateStore // nil without a session: width is not saved
 
-	leader  bool     // spc was pressed; the next key is a leader key
-	prompt  *prompt  // a question on the message line
-	overlay *overlay // an open palette
-	exq     *exQueue // ex commands the engine handed to the app
+	leader  bool             // spc was pressed; the next key is a leader key
+	pending *tea.KeyPressMsg // the first key of a sequence such as [d
+	prompt  *prompt          // a question on the message line
+	overlay *overlay         // an open palette
+	exq     *exQueue         // ex commands the engine handed to the app
 
 	session *config.Session // nil until WithSession
 	looks   looks
@@ -63,10 +64,13 @@ type Model struct {
 	confirming bool // the overwrite y/N prompt is up (disk.go)
 }
 
-// New opens the Note at path. A missing file opens as an empty buffer.
-// Until WithSession, the Note's folder stands in for the Vault.
+// New opens the Note at path. A missing file opens as an empty buffer, and
+// path "" opens an empty buffer with no file. Until WithSession, the Note's
+// folder stands in for the Vault.
 func New(deps Deps, path string) (Model, error) {
-	path = filepath.Clean(path)
+	if path != "" {
+		path = filepath.Clean(path)
+	}
 	m := Model{
 		deps: deps, vault: filepath.Dir(path), wrap: true, conceal: true,
 		sideOn: true, sideW: config.DefaultState().SidebarWidth,
@@ -105,6 +109,9 @@ func (m Model) path() string { return m.file.path }
 
 // rel is path relative to the Vault, for display.
 func (m Model) rel(path string) string {
+	if path == "" {
+		return "[No Name]"
+	}
 	if r, err := filepath.Rel(m.vault, path); err == nil && !strings.HasPrefix(r, "..") {
 		return filepath.ToSlash(r)
 	}
@@ -162,9 +169,18 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.leader = false
 		return m.leaderKey(name)
 	}
+	if m.pending != nil {
+		first := *m.pending
+		m.pending = nil
+		return m.sequenceKey(first, msg)
+	}
 	if m.free() {
 		if a, ok := lookup(scopeGlobal, name); ok {
 			return m.run(a, "")
+		}
+		if startsSequence(name) {
+			m.pending = &msg
+			return m, nil
 		}
 	}
 	if m.sidebarFocused() {

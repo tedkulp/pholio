@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 	"github.com/tedkulp/pholio/internal/theme"
 )
@@ -27,12 +28,12 @@ type Node struct {
 }
 
 // Note reports whether the node is a Markdown Note.
-func (n Node) Note() bool { return !n.Dir && strings.HasSuffix(n.Name, ".md") }
+func (n Node) Note() bool { return !n.Dir && index.IsNote(n.Name) }
 
 // Label is how the node is shown: Notes without their ".md".
 func (n Node) Label() string {
 	if n.Note() {
-		return strings.TrimSuffix(n.Name, ".md")
+		return index.TrimNoteExt(n.Name)
 	}
 	return n.Name
 }

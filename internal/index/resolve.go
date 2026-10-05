@@ -55,7 +55,7 @@ func (ix *Index) resolveName(target string) (Resolution, bool) {
 // code holding its own list of Notes (a planned rename) resolve Links by
 // the same rules.
 func ResolveName(target string, named func(name string) []string) (Resolution, bool) {
-	target = strings.TrimSuffix(strings.Trim(target, "/"), ".md")
+	target = TrimNoteExt(strings.Trim(target, "/"))
 	folder, name := "", target
 	if i := strings.LastIndexByte(target, '/'); i >= 0 {
 		folder, name = strings.ToLower(target[:i]), target[i+1:]

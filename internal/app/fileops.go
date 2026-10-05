@@ -64,13 +64,11 @@ func vaultPath(typed string, note bool) (string, error) {
 	if rel == "." || !inVault(rel) {
 		return "", fmt.Errorf("not a path in the Vault: %q", typed)
 	}
-	if note && !isNote(rel) {
+	if note && !index.IsNote(rel) {
 		rel += ".md"
 	}
 	return rel, nil
 }
-
-func isNote(rel string) bool { return strings.HasSuffix(strings.ToLower(rel), ".md") }
 
 // openNew opens the Note :new names: as it is when it exists, else as an
 // unsaved buffer.
@@ -149,10 +147,24 @@ func (m Model) add(typed string) (Model, tea.Cmd) {
 	return m.openAt(p, func(m Model) Model { return m.say("Created "+rel, false) })
 }
 
+// noFileName refuses a command that needs the open Note's file when the
+// buffer has none, as vim does.
+func (m Model) noFileName() Model { return m.say("E32: No file name", true) }
+
+// yesNo are the answers to a yes/no question: y and n in either case, and
+// enter for the default, yes when defaultYes.
+func yesNo(yes, no func(Model) (Model, tea.Cmd), defaultYes bool) map[string]func(Model) (Model, tea.Cmd) {
+	enter := no
+	if defaultYes {
+		enter = yes
+	}
+	return map[string]func(Model) (Model, tea.Cmd){"y": yes, "Y": yes, "n": no, "N": no, "enter": enter}
+}
+
 // renameNote (:rename [path]) renames or moves the open Note.
 func (m Model) renameNote(arg string) (Model, tea.Cmd) {
 	if m.path() == "" {
-		return m.say("E32: No file name", true), nil
+		return m.noFileName(), nil
 	}
 	if _, err := m.deps.FS.Stat(m.path()); err != nil {
 		return m.say(m.rel(m.path())+" is not on disk yet: :w first", true), nil
@@ -194,7 +206,7 @@ func (m Model) move(from, typed string) (Model, tea.Cmd) {
 		return m.say(err.Error(), true), nil
 	}
 	fromRel := m.vaultRel(from)
-	toRel, err := vaultPath(typed, !info.IsDir() && isNote(fromRel))
+	toRel, err := vaultPath(typed, !info.IsDir() && index.IsNote(fromRel))
 	if err != nil {
 		return m.say(err.Error(), true), nil
 	}
@@ -210,7 +222,7 @@ func (m Model) move(from, typed string) (Model, tea.Cmd) {
 	}
 
 	ix := m.index()
-	if ix == nil || (!info.IsDir() && !isNote(fromRel)) {
+	if ix == nil || (!info.IsDir() && !index.IsNote(fromRel)) {
 		return m.moveFiles(from, to, nil, nil), nil
 	}
 	if !m.indexReady() {
@@ -236,9 +248,7 @@ func (m Model) move(from, typed string) (Model, tea.Cmd) {
 	}
 	keep := func(m Model) (Model, tea.Cmd) { return m.moveFiles(from, to, notes, moves), nil }
 	q := fmt.Sprintf("Update %s in %s? [Y/n]", plural(links, "Link"), plural(len(edits), "Note"))
-	return m.ask(q, map[string]func(Model) (Model, tea.Cmd){
-		"y": rewrite, "Y": rewrite, "enter": rewrite, "n": keep, "N": keep,
-	}), nil
+	return m.ask(q, yesNo(rewrite, keep, true)), nil
 }
 
 // noteMoves lists the Notes a move takes along, Vault-relative before →
@@ -276,7 +286,7 @@ func (m Model) moveFiles(from, to string, notes []index.Note, moves map[string]s
 	}
 	if p, ok := movedPath(m.path(), from, to); ok {
 		e := m.ed.Engine()
-		m.file.path, e.Path = p, p
+		e.Path = p
 		m.ed = m.newEditor(e)
 	}
 	m.jumps = m.jumps.moved(from, to)
@@ -294,6 +304,12 @@ func movedPath(p, from, to string) (string, bool) {
 		return filepath.Join(to, rest), true
 	}
 	return "", false
+}
+
+// within reports whether p is the file or folder at dir or inside it.
+func within(p, dir string) bool {
+	_, ok := movedPath(p, dir, dir)
+	return ok
 }
 
 // moved follows a rename in the jumplist's entries.
@@ -316,8 +332,7 @@ func (m Model) rewrite(edits []relink.Edit, links int) Model {
 		if p == m.path() {
 			e := m.ed.Engine()
 			if e.Dirty {
-				e.Reload(ed.Contents)
-				e.Dirty = true
+				e.Replace(ed.Contents)
 				m = m.syncIndex()
 				continue
 			}
@@ -328,7 +343,7 @@ func (m Model) rewrite(edits []relink.Edit, links int) Model {
 		}
 		if p == m.path() {
 			m.ed.Engine().Reload(ed.Contents)
-			m.fed = m.ed.Engine().Buf.Version()
+			m.indexedVer = m.ed.Engine().Buf.Version()
 		}
 	}
 	if len(failed) > 0 {
@@ -340,7 +355,7 @@ func (m Model) rewrite(edits []relink.Edit, links int) Model {
 // deleteNote (:delete) deletes the open Note.
 func (m Model) deleteNote() (Model, tea.Cmd) {
 	if m.path() == "" {
-		return m.say("E32: No file name", true), nil
+		return m.noFileName(), nil
 	}
 	return m.confirmDelete(m.path())
 }
@@ -369,17 +384,13 @@ func (m Model) confirmDelete(p string) (Model, tea.Cmd) {
 	switch {
 	case info.IsDir():
 		q = fmt.Sprintf("Delete %s/ (%s)? y/N", rel, plural(m.countFiles(p), "file"))
-	case isNote(rel) && m.indexReady():
+	case index.IsNote(rel) && m.indexReady():
 		m = m.syncIndex()
 		q = fmt.Sprintf("Delete %s (%s)? y/N", rel, plural(len(m.index().Backlinks(rel)), "Backlink"))
 	}
+	yes := func(m Model) (Model, tea.Cmd) { return m.trash(p, info.IsDir()), nil }
 	no := func(m Model) (Model, tea.Cmd) { return m, nil }
-	return m.ask(q, map[string]func(Model) (Model, tea.Cmd){
-		"y":     func(m Model) (Model, tea.Cmd) { return m.trash(p, info.IsDir()), nil },
-		"n":     no,
-		"N":     no,
-		"enter": no,
-	}), nil
+	return m.ask(q, yesNo(yes, no, false)), nil
 }
 
 // countFiles counts the files under the folder dir.
@@ -412,13 +423,13 @@ func (m Model) trash(p string, dir bool) Model {
 		ix.Remove(p)
 		if dir {
 			for _, n := range ix.Notes() {
-				if _, ok := movedPath(m.abs(n.Path), p, p); ok {
+				if within(m.abs(n.Path), p) {
 					ix.Remove(m.abs(n.Path))
 				}
 			}
 		}
 	}
-	if _, ok := movedPath(m.path(), p, p); ok {
+	if within(m.path(), p) {
 		f := m.focus
 		m, _ = m.switchTo("")
 		m.focus = f

@@ -119,7 +119,7 @@ func markdownAt(line string, i int) (Link, int, bool) {
 		return Link{}, 0, false
 	}
 	target, heading, _ := strings.Cut(dest, "#")
-	if !strings.HasSuffix(strings.ToLower(target), ".md") {
+	if !IsNote(target) {
 		return Link{}, 0, false
 	}
 	if u, err := url.PathUnescape(target); err == nil {

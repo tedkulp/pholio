@@ -21,15 +21,31 @@ func (m Model) taskRules() engine.FixupFunc {
 // buffer, which is not saved; any other Note is rewritten on disk.
 func (m Model) toggleTask(path string, line int) (Model, error) {
 	path = filepath.Clean(path)
-	if path == m.path() {
-		if !tasks.ToggleLine(m.ed.Engine(), line, m.today()) {
-			return m, fmt.Errorf("%s:%d: %w", m.rel(path), line+1, tasks.ErrNotATask)
+	return m, m.editNote(path, func(e *engine.Engine) error {
+		if !tasks.ToggleLine(e, line, m.today()) {
+			return fmt.Errorf("%s:%d: %w", m.rel(path), line+1, tasks.ErrNotATask)
 		}
-		return m, nil
+		return nil
+	}, func(f *noteFile) error {
+		return tasks.ToggleFile(f, path, line, m.today())
+	})
+}
+
+// editNote changes the Note at path: through buffer when it is the open
+// Note, so the edit is undoable and unsaved, else through disk, which
+// gets a file to rewrite it with (see otherFile).
+func (m Model) editNote(path string, buffer func(*engine.Engine) error, disk func(*noteFile) error) error {
+	if path == m.path() {
+		return buffer(m.ed.Engine())
 	}
-	// A copy of the open Note's file writes the same way (reporting the
-	// write to the watcher) without touching the open Note's disk state.
-	other := *m.file
-	other.path = ""
-	return m, tasks.ToggleFile(&other, path, line, m.today())
+	return disk(m.otherFile())
+}
+
+// otherFile is a file for writing Notes other than the open one. It
+// writes the way the open Note's does (telling the watcher and index)
+// without touching the open Note's disk state.
+func (m Model) otherFile() *noteFile {
+	f := *m.file
+	f.e, f.opening = nil, ""
+	return &f
 }

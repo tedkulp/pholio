@@ -29,24 +29,24 @@ type change struct {
 	text             string
 }
 
-// vault is the set of Notes on one side of the move, for resolving Links.
-type vault struct {
+// noteSet is the set of Notes on one side of the move, for resolving Links.
+type noteSet struct {
 	notes  map[string]bool
 	byName map[string][]string // lower-cased name → paths
 }
 
-func newVault(paths []string) vault {
-	v := vault{notes: map[string]bool{}, byName: map[string][]string{}}
+func newNoteSet(paths []string) noteSet {
+	v := noteSet{notes: map[string]bool{}, byName: map[string][]string{}}
 	for _, p := range paths {
 		v.notes[p] = true
-		k := strings.ToLower(strings.TrimSuffix(path.Base(p), ".md"))
+		k := strings.ToLower(index.NoteName(p))
 		v.byName[k] = append(v.byName[k], p)
 	}
 	return v
 }
 
 // resolve finds where l, written in the Note at from, points in v.
-func (v vault) resolve(from string, l index.Link) (index.Resolution, bool) {
+func (v noteSet) resolve(from string, l index.Link) (index.Resolution, bool) {
 	if l.Kind == index.MarkdownLink {
 		p := path.Join(path.Dir(from), l.Target)
 		if v.notes[p] {
@@ -80,7 +80,7 @@ func Plan(notes []index.Note, moves map[string]string) []Edit {
 		before = append(before, n.Path)
 		after = append(after, moved(n.Path))
 	}
-	old, now := newVault(before), newVault(after)
+	old, now := newNoteSet(before), newNoteSet(after)
 
 	var edits []Edit
 	for _, n := range notes {
@@ -112,7 +112,7 @@ func Plan(notes []index.Note, moves map[string]string) []Edit {
 }
 
 // text is the new text of Link l in the Note at from, pointing to target.
-func (v vault) text(from, target string, l index.Link) string {
+func (v noteSet) text(from, target string, l index.Link) string {
 	if l.Kind == index.MarkdownLink {
 		dest := escape(relative(path.Dir(from), target))
 		if l.Heading != "" {
@@ -133,8 +133,8 @@ func (v vault) text(from, target string, l index.Link) string {
 // shortest is the shortest WikiLink target that resolves to exactly the
 // Note at p: its name, then with as many of its folders as it takes. The
 // full path is the fallback.
-func (v vault) shortest(p string) string {
-	full := strings.TrimSuffix(p, ".md")
+func (v noteSet) shortest(p string) string {
+	full := index.TrimNoteExt(p)
 	segs := strings.Split(full, "/")
 	for i := len(segs) - 1; i >= 0; i-- {
 		cand := strings.Join(segs[i:], "/")

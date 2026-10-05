@@ -28,7 +28,7 @@ func rankNotes(query string, notes []index.Note, limit int) []index.Note {
 	slices.SortStableFunc(notes, func(a, b index.Note) int { return len(a.Path) - len(b.Path) })
 	ranked := fuzzy.Rank(query, len(notes), func(i int) []string {
 		n := notes[i]
-		return []string{n.Name, n.Title, strings.TrimSuffix(n.Path, ".md")}
+		return []string{n.Name, n.Title, index.TrimNoteExt(n.Path)}
 	})
 	out := make([]index.Note, 0, min(limit, len(ranked)))
 	for _, r := range ranked[:min(limit, len(ranked))] {

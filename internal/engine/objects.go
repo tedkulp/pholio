@@ -36,7 +36,8 @@ func (e *Engine) object(name string) (a, z Pos, linewise, ok bool) {
 func (e *Engine) wordObject(inner, big bool) (a, z Pos, linewise, ok bool) {
 	ln, l, c := e.Cur.Line, e.line(e.Cur.Line), e.Cur.Col
 	if l == "" {
-		return
+		// An empty line is an empty word: c then just enters insert mode.
+		return Pos{ln, 0}, Pos{ln, 0}, false, true
 	}
 	clsAt := func(i int) int { return class(runeAt(l, i), big) }
 	cl := clsAt(c)

@@ -77,3 +77,23 @@ func TestUndoRedoRestoresExactState(t *testing.T) {
 		}
 	}
 }
+
+func TestUndoBackToSavedTextIsClean(t *testing.T) {
+	e := load("|ab")
+	feed(e, "x")
+	if !e.Dirty {
+		t.Fatal("x left the buffer clean")
+	}
+	feed(e, "u")
+	if e.Dirty {
+		t.Error("undo back to the loaded text left the buffer dirty")
+	}
+	feed(e, "<ctrl+r>")
+	if !e.Dirty {
+		t.Error("redo away from the loaded text left the buffer clean")
+	}
+	feed(e, "ihey<esc>uu")
+	if e.Dirty {
+		t.Error("undoing two changes back to the loaded text left it dirty")
+	}
+}

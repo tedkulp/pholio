@@ -236,3 +236,15 @@ func TestRescanWithoutWatcher(t *testing.T) {
 		t.Fatalf("notice = %+v", n)
 	}
 }
+
+func TestUppercaseExtensionIsANote(t *testing.T) {
+	r := newRig(t, map[string]string{"/vault/Foo.MD": "old"})
+	_ = r.fs.WriteFile("/vault/Foo.MD", []byte("new"))
+	r.w.Emit(seam.WatchEvent{Path: "/vault/Foo.MD", Op: seam.OpWrite})
+	if n := next(t, r.v); n.Path != "/vault/Foo.MD" || string(n.Data) != "new" {
+		t.Fatalf("notice = %+v", n)
+	}
+	if s, _ := r.ix.get("/vault/Foo.MD"); s != "new" {
+		t.Errorf("index has %q", s)
+	}
+}

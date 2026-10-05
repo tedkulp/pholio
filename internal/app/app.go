@@ -64,19 +64,22 @@ type Model struct {
 	overlay *overlay         // an open palette
 	exq     *exQueue         // ex commands the engine handed to the app
 
-	session *config.Session // nil until WithSession
-	looks   looks
-	message string // shown on the message line until the next key
-	problem bool   // the message reports a problem
+	session    *config.Session // nil until WithSession
+	appearance appearance      // the theme and how it was chosen (theme.go)
+	message    string          // shown on the message line until the next key
+	problem    bool            // the message reports a problem
 
 	confirming bool // the overwrite y/N prompt is up (disk.go)
+	// quitAfterWrite: the overwrite prompt is up for a :wq or :x, which
+	// quits once the write goes through.
+	quitAfterWrite bool
 
 	noMouse bool // mouse = false: no mouse mode is requested (mouse.go)
 	drag    bool // the sidebar border is being dragged (mouse.go)
 
-	jumps   jumplist // the session's Note history (jumplist.go)
-	fed     uint64   // the buffer version last fed to the index (index.go)
-	syncGen int      // the pending index feed; bumped to cancel it
+	jumps      jumplist // the session's Note history (jumplist.go)
+	indexedVer uint64   // the buffer version last fed to the index (index.go)
+	syncGen    int      // the pending index feed; bumped to cancel it
 
 	recent   []string    // Notes opened this session, newest first (find.go)
 	complete *completion // the [[ popup (complete.go)
@@ -92,7 +95,7 @@ func New(deps Deps, path string) (Model, error) {
 	m := Model{
 		deps: deps, vault: filepath.Dir(path), wrap: true, conceal: true,
 		sideOn: true, sideW: config.DefaultState().SidebarWidth,
-		exq: &exQueue{}, looks: defaultLooks(),
+		exq: &exQueue{}, appearance: defaultAppearance(),
 	}
 	file, e, err := m.openEngine(path)
 	if err != nil {
@@ -100,7 +103,7 @@ func New(deps Deps, path string) (Model, error) {
 	}
 	m.file = file
 	m.ed = m.newEditor(e)
-	m.fed = e.Buf.Version()
+	m.indexedVer = e.Buf.Version()
 	m.recent = remember(m.recent, path)
 	m.side = sidebar.New(deps.FS, m.vault).Reveal(path)
 	return m.relayout(), nil
@@ -109,11 +112,12 @@ func New(deps Deps, path string) (Model, error) {
 // openEngine loads path, through a new noteFile, into a new engine wired
 // to the app's ex commands.
 func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
-	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, index: m.deps.Index, path: path}
+	file := &noteFile{fs: m.deps.FS, watch: m.deps.Watch, index: m.deps.Index, opening: path}
 	e, err := engine.Open(file, path)
 	if err != nil {
 		return nil, nil, err
 	}
+	file.e = e
 	e.Msg = "" // the message line is the app's
 	m.registerEx(e)
 	return file, e, nil
@@ -127,7 +131,7 @@ func (m Model) newEditor(e *engine.Engine) editor.Model {
 }
 
 // path is the open Note's path.
-func (m Model) path() string { return m.file.path }
+func (m Model) path() string { return m.file.path() }
 
 // rel is path relative to the Vault, for display.
 func (m Model) rel(path string) string {
@@ -165,14 +169,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.side = m.side.Refresh()
 		m = m.checkDisk()
-	case tea.KeyPressMsg:
-		m, cmd = m.key(msg)
-		var sync tea.Cmd
-		m, sync = m.editedIndex()
-		cmd = tea.Batch(cmd, sync)
-	case tea.PasteMsg:
-		m, cmd = m.paste(msg)
-		var sync tea.Cmd
+	case tea.KeyPressMsg, tea.PasteMsg:
+		if k, ok := msg.(tea.KeyPressMsg); ok {
+			m, cmd = m.key(k)
+		} else {
+			m, cmd = m.paste(msg.(tea.PasteMsg))
+		}
+		var sync tea.Cmd // either may have edited the buffer
 		m, sync = m.editedIndex()
 		cmd = tea.Batch(cmd, sync)
 	case tea.MouseMsg:
@@ -182,7 +185,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case indexReadyMsg:
 		m = m.indexScanned(msg)
 	case grepTickMsg:
-		m = m.grepTick(msg)
+		m, cmd = m.grepTick(msg)
+	case grepResultMsg:
+		m = m.grepResult(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()
@@ -195,11 +200,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // leader, global keys, the sidebar and finally the editor.
 func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	name := keyName(msg)
+	if name == "ctrl+q" { // quits from anywhere, still asking about unsaved text
+		m.prompt, m.confirming, m.quitAfterWrite = nil, false, false
+	}
 	if m.prompt != nil {
 		return m.answer(name)
 	}
-	if m.confirming && name != "ctrl+q" {
-		return m.answerOverwrite(msg), nil
+	if m.confirming {
+		return m.answerOverwrite(msg)
 	}
 	if a, ok := lookup(scopeApp, name); ok {
 		return m.run(a, "")
@@ -251,37 +259,44 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 // free reports whether global keys (the leader, ctrl+h/l) may fire: from
 // the sidebar, or in normal mode with nothing pending.
-func (m Model) free() bool {
-	if m.sidebarFocused() {
-		return true
-	}
-	e := m.ed.Engine()
-	return e.Mode == engine.Normal && e.PendingKeys() == ""
-}
+func (m Model) free() bool { return m.sidebarFocused() || m.editorIdle() }
 
 // normalIdle reports whether the editor has focus in normal mode with
 // nothing pending: where scopeNormal keys fire.
-func (m Model) normalIdle() bool {
+func (m Model) normalIdle() bool { return !m.sidebarFocused() && m.editorIdle() }
+
+// editorIdle reports whether the engine is in normal mode with nothing
+// pending.
+func (m Model) editorIdle() bool {
 	e := m.ed.Engine()
-	return !m.sidebarFocused() && e.Mode == engine.Normal && e.PendingKeys() == ""
+	return e.Mode == engine.Normal && e.PendingKeys() == ""
 }
 
 func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	m.message, m.problem = "", false
 	e := m.ed.Engine()
+	writeQuit := false
 	if e.Mode == engine.Command && keyName(msg) == "enter" {
 		if prompt, text := e.CmdLine(); prompt == ":" {
-			switch strings.Fields(text + " ")[0] {
+			switch name := strings.Fields(text + " ")[0]; name {
 			case "q", "quit":
 				e.Feed("esc")
 				return m.requestQuit()
 			case "q!", "quit!":
 				return m, tea.Quit
+			default:
+				switch strings.TrimSuffix(name, "!") {
+				case "wq", "x", "xit":
+					writeQuit = true
+				}
 			}
 		}
 	}
 	m.ed = m.ed.Update(msg)
 	m = m.askedToOverwrite()
+	if m.confirming && writeQuit {
+		m.quitAfterWrite = true
+	}
 	m, cmd := m.drainEx()
 	if e.Quit { // :wq and :x, once written
 		e.Quit = false
@@ -332,7 +347,7 @@ func (m Model) View() tea.View {
 	if m.w <= 0 || m.h <= 0 {
 		return v
 	}
-	th := m.looks.theme
+	th := m.appearance.theme
 	rows := []string{m.statusLine(), m.messageLine()}
 	var cursor *tea.Cursor
 	if m.h > 2 {
@@ -362,7 +377,7 @@ func (m Model) View() tea.View {
 
 // body is the pane area: sidebar and editor side by side.
 func (m Model) body() (string, *tea.Cursor) {
-	th := m.looks.theme
+	th := m.appearance.theme
 	text, cursor := m.ed.SetTags(m.file.tags()...).View(th)
 	sw := m.sidebarWidth()
 	if m.sidebarFocused() {
@@ -386,7 +401,7 @@ func (m Model) body() (string, *tea.Cursor) {
 // statusLine is the editor's status line, or the leader hint while spc is
 // pending.
 func (m Model) statusLine() string {
-	th := m.looks.theme
+	th := m.appearance.theme
 	if !m.leader {
 		return m.ed.SetTags(m.file.tags()...).StatusLine(th, m.w)
 	}
@@ -398,7 +413,7 @@ func (m Model) statusLine() string {
 // messageLine shows the prompt, the app's message or the engine's, in that
 // order. The cmdline, when open, is drawn over it in View.
 func (m Model) messageLine() string {
-	th := m.looks.theme
+	th := m.appearance.theme
 	e := m.ed.Engine()
 	msg, slot := e.Msg, theme.UIMessage
 	switch {

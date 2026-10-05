@@ -46,7 +46,9 @@ func (m *Model) looks(i int) func(col int) overlay {
 		return func(int) overlay { return plain }
 	}
 	from, to := 0, len(m.e.Buf.Line(i))
-	if sel && !linewise {
+	if to == 0 { // an empty line's one cell stands for its newline
+		to = 1
+	} else if sel && !linewise {
 		if i == a.Line {
 			from = a.Col
 		}

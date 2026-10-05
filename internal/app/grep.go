@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/engine"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/palette"
 )
 
@@ -111,10 +112,10 @@ type grepHit struct {
 	query string
 }
 
-// grep searches every Note in the index for query, in path then line
-// order. more is set when it stopped at the limit.
-func (m Model) grep(query string) (hits []grepHit, more bool) {
-	for _, n := range m.index().Notes() {
+// grep searches every Note in ix for query, in path then line order. more
+// is set when it stopped at the limit. It is safe off the update loop.
+func grep(ix *index.Index, query string) (hits []grepHit, more bool) {
+	for _, n := range ix.Notes() {
 		if match(query, n.Contents) == nil { // most Notes: skip the split
 			continue
 		}
@@ -211,35 +212,68 @@ func (m Model) showGrep(query string) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// grepTick runs a debounced query in the open search palette.
-func (m Model) grepTick(msg grepTickMsg) Model {
+// grepResultMsg carries the hits of a search run off the update loop.
+type grepResultMsg struct {
+	st    *grepState
+	gen   int
+	query string
+	hits  []grepHit
+	more  bool
+}
+
+// grepTick starts a debounced query of the open search palette in the
+// background. Its result is dropped if the query changed meanwhile.
+func (m Model) grepTick(msg grepTickMsg) (Model, tea.Cmd) {
 	if !msg.st.open || msg.gen != msg.st.gen || m.overlay == nil {
+		return m, nil
+	}
+	query := m.overlay.p.Query()
+	if query == "" || !m.indexReady() {
+		m.overlay.p = m.grepItems(m.overlay.p, query)
+		return m, nil
+	}
+	ix, st, gen := m.index(), msg.st, msg.gen
+	return m, func() tea.Msg {
+		hits, more := grep(ix, query)
+		return grepResultMsg{st: st, gen: gen, query: query, hits: hits, more: more}
+	}
+}
+
+// grepResult shows a background search's hits, unless they are stale.
+func (m Model) grepResult(msg grepResultMsg) Model {
+	if !msg.st.open || msg.gen != msg.st.gen || m.overlay == nil || m.overlay.p.Query() != msg.query {
 		return m
 	}
-	m.overlay.p = m.grepItems(m.overlay.p, m.overlay.p.Query())
+	m.overlay.p = grepShow(m.overlay.p, msg.hits, msg.more)
 	return m
 }
 
-// grepItems fills p with the results for query.
+const grepKeys = "enter open · esc close"
+
+// grepItems fills p with the results for query, searching now.
 func (m Model) grepItems(p palette.Model, query string) palette.Model {
-	const keys = "enter open · esc close"
 	switch {
 	case query == "":
-		return p.WithEmpty("type to search the Vault").WithHint(keys).SetItems(nil)
+		return p.WithEmpty("type to search the Vault").WithHint(grepKeys).SetItems(nil)
 	case !m.indexReady():
-		return p.WithEmpty("indexing…").WithHint(keys).SetItems(nil)
+		return p.WithEmpty("indexing…").WithHint(grepKeys).SetItems(nil)
 	}
-	hits, more := m.grep(query)
+	hits, more := grep(m.index(), query)
+	return grepShow(p, hits, more)
+}
+
+// grepShow fills p with hits.
+func grepShow(p palette.Model, hits []grepHit, more bool) palette.Model {
 	items := make([]palette.Item, len(hits))
 	for i, h := range hits {
 		text, marks := h.snippet()
-		items[i] = palette.Item{Text: text, Marks: marks, Detail: fmt.Sprintf("%s:%d", h.path, h.line+1), Value: h}
+		items[i] = palette.Item{Text: text, Marks: marks, Detail: lineRef(h.path, h.line), Value: h}
 	}
 	count := fmt.Sprintf("%d matches", len(hits))
 	if more {
 		count = fmt.Sprintf("%d+ matches", len(hits))
 	}
-	return p.WithEmpty("no matches").WithHint(count + " · " + keys).SetItems(items)
+	return p.WithEmpty("no matches").WithHint(count + " · " + grepKeys).SetItems(items)
 }
 
 // openHit opens a search result at its match and loads the query into /,

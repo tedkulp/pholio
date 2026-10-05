@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/palette"
 )
 
@@ -71,10 +72,10 @@ func (m Model) zettelRel(title string) (string, error) {
 // zettelStampOf is the timestamp ID a file name starts with, if any.
 func zettelStampOf(name string) (string, bool) {
 	n := len(zettelStamp)
-	if len(name) < n+3 || !strings.HasSuffix(name, ".md") {
+	if len(name) < n+3 || !index.IsNote(name) {
 		return "", false
 	}
-	if rest := name[n:]; rest != ".md" && rest[0] != '-' {
+	if rest := index.TrimNoteExt(name[n:]); rest != "" && rest[0] != '-' {
 		return "", false
 	}
 	stamp := name[:n]
@@ -89,7 +90,7 @@ func zettelStampOf(name string) (string, bool) {
 // linkName is the plain WikiLink name for a Vault path: its file name
 // without .md.
 func linkName(p string) string {
-	return strings.TrimSuffix(filepath.Base(p), ".md")
+	return index.TrimNoteExt(filepath.Base(p))
 }
 
 // newZettel (spc z, :zettel) asks for a title, previewing the file name,

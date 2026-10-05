@@ -51,9 +51,12 @@ func (m Model) backlinkItems(p palette.Model) palette.Model {
 	for i, b := range links {
 		items[i] = palette.Item{
 			Text:   strings.TrimSpace(b.Context),
-			Detail: fmt.Sprintf("%s:%d", b.Source, b.Link.Line+1),
+			Detail: lineRef(b.Source, b.Link.Line),
 			Value:  b,
 		}
 	}
 	return p.WithEmpty("no Backlinks").SetItems(items)
 }
+
+// lineRef is the "path:line" a result row shows for 0-based line.
+func lineRef(path string, line int) string { return fmt.Sprintf("%s:%d", path, line+1) }

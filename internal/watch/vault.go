@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 )
 
@@ -304,5 +305,5 @@ func (v *Vault) inside(p string) bool {
 // isNote reports whether p names a Note. Swap and backup files (.swp, ~,
 // 4913, sedXXXX) don't end in ".md" and are skipped with everything else.
 func isNote(p string) bool {
-	return strings.HasSuffix(p, ".md") && !strings.HasPrefix(filepath.Base(p), ".")
+	return index.IsNote(p) && !strings.HasPrefix(filepath.Base(p), ".")
 }

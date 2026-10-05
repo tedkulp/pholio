@@ -60,3 +60,10 @@ func TestTextObjects(t *testing.T) {
 		{"unknown object", "a|b", "dizx", "|a"},
 	})
 }
+
+func TestCiwOnEmptyLineEntersInsert(t *testing.T) {
+	runTable(t, []tcase{
+		{"ciw on empty line", "a\n|\nb", "ciwX<esc>", "a\n|X\nb"},
+		{"caw on empty line", "a\n|\nb", "cawX<esc>", "a\n|X\nb"},
+	})
+}

@@ -32,8 +32,13 @@ type Model struct {
 	// conceal hides markdown syntax on every line but the cursor's.
 	conceal bool
 	// fence is the fence pass over the buffer: fence[i] is true when line
-	// i is a fence or inside a fenced code block.
-	fence []bool
+	// i is a fence or inside a fenced code block. fenceVer is the buffer
+	// version it was computed for; the pass reruns only when that changes.
+	fence    []bool
+	fenceVer uint64
+	// lays caches the layouts of lines other than the cursor's. It is
+	// shared between copies of the Model, like the engine.
+	lays *layCache
 
 	top  spot // first visible row
 	left int  // first visible cell column when wrap is off
@@ -42,7 +47,18 @@ type Model struct {
 // New makes a pane over e, showing name on the status line. Wrap and
 // conceal are on.
 func New(e *engine.Engine, name string) Model {
-	return Model{e: e, name: name, wrap: true, conceal: true, fence: fences(e.Buf)}
+	m := Model{e: e, name: name, wrap: true, conceal: true, lays: &layCache{}}
+	m.refence()
+	return m
+}
+
+// refence reruns the fence pass when the buffer changed since the last one.
+// Engine buffer versions are unique across buffers, so a reload is caught
+// too.
+func (m *Model) refence() {
+	if v := m.e.Buf.Version(); m.fence == nil || v != m.fenceVer {
+		m.fence, m.fenceVer = fences(m.e.Buf), v
+	}
 }
 
 // Engine is the engine the pane edits.
@@ -103,9 +119,41 @@ func keyName(msg tea.KeyPressMsg) string {
 	return msg.Keystroke()
 }
 
+// layCache holds line layouts for one buffer version and pane shape.
+type layCache struct {
+	ver           uint64
+	w             int
+	wrap, conceal bool
+	lines         map[int]layout
+}
+
+// maxCachedLays bounds the layout cache; it starts over when full.
+const maxCachedLays = 4096
+
 // lay lays out buffer line i for the pane, highlighted, and concealed
-// unless it is the cursor's line.
+// unless it is the cursor's line. Other lines' layouts don't depend on
+// the cursor, so they are cached until the text or pane shape changes.
 func (m *Model) lay(i int) layout {
+	cur := m.e.Cur
+	c := m.lays
+	if c == nil || i == cur.Line {
+		return m.layLine(i)
+	}
+	if v := m.e.Buf.Version(); c.lines == nil || len(c.lines) >= maxCachedLays ||
+		c.ver != v || c.w != m.w || c.wrap != m.wrap || c.conceal != m.conceal {
+		*c = layCache{ver: v, w: m.w, wrap: m.wrap, conceal: m.conceal, lines: map[int]layout{}}
+	}
+	if l, ok := c.lines[i]; ok {
+		return l
+	}
+	l := m.layLine(i)
+	c.lines[i] = l
+	return l
+}
+
+// layLine lays out line i without the cache.
+func (m *Model) layLine(i int) layout {
+	m.refence()
 	l := m.e.Buf.Line(i)
 	cur := m.e.Cur
 	ks, hidden := highlight(l, i < len(m.fence) && m.fence[i])
@@ -153,7 +201,7 @@ func (m *Model) cursorSpot() (spot, int) {
 // context. It walks at most a screenful of rows from the cursor, so it
 // costs O(viewport) however far the cursor jumped.
 func (m *Model) scroll() {
-	m.fence = fences(m.e.Buf)
+	m.refence()
 	if m.h == 0 {
 		return
 	}
@@ -201,9 +249,7 @@ func (m *Model) distance(top, s spot, limit int) int {
 // width. The cursor is relative to the pane's top-left cell. It is nil
 // while a command line is open: the cursor is on that line then.
 func (m Model) View(th theme.Theme) (string, *tea.Cursor) {
-	if len(m.fence) != m.e.Buf.LineCount() { // changed outside Update
-		m.fence = fences(m.e.Buf)
-	}
+	m.refence() // the buffer may have changed outside Update
 	styles := paletteFor(th)
 	eob := th.Style(theme.UIEndOfBuffer)
 	curSpot, curX := m.cursorSpot()
@@ -217,7 +263,11 @@ func (m Model) View(th theme.Theme) (string, *tea.Cursor) {
 			if s == curSpot {
 				c = tea.NewCursor(curX-m.left, len(rows))
 			}
-			rows = append(rows, pad(drawRow(lay[s.row], m.left, m.w, styles, look), m.w))
+			row := drawRow(lay[s.row], m.left, m.w, styles, look)
+			if len(lay) == 1 && len(lay[0]) == 0 && m.left == 0 && look(0) == selected {
+				row = styles[selected][kText].Render(" ")
+			}
+			rows = append(rows, pad(row, m.w))
 		}
 	}
 	for len(rows) < m.h {

@@ -140,9 +140,9 @@ func (m Model) switchTo(path string) (Model, bool) {
 	if m.ed.Engine().Dirty { // its text is being discarded
 		m = m.unsyncIndex()
 	}
-	m.file, m.confirming = file, false
+	m.file, m.confirming, m.quitAfterWrite = file, false, false
 	m.ed = m.newEditor(e)
-	m.fed = e.Buf.Version()
+	m.indexedVer = e.Buf.Version()
 	m.recent = remember(m.recent, path)
 	m.side = m.side.Reveal(path)
 	m.focus = focusEditor
@@ -156,12 +156,16 @@ func (m Model) requestQuit() (Model, tea.Cmd) {
 	})
 }
 
-// unlessDirty runs then now when the buffer is clean. Otherwise it asks
+// unsaved reports whether closing the buffer would lose text: it is dirty,
+// or its file was deleted on disk.
+func (m Model) unsaved() bool { return m.ed.Engine().Dirty || m.file.deleted }
+
+// unlessDirty runs then now when the buffer is saved. Otherwise it asks
 // question (with %s for the Note): y saves and runs then, n runs then
 // without saving, esc cancels.
 func (m Model) unlessDirty(question string, then func(Model) (Model, tea.Cmd)) (Model, tea.Cmd) {
 	e := m.ed.Engine()
-	if !e.Dirty {
+	if !m.unsaved() {
 		return then(m)
 	}
 	return m.ask(fmt.Sprintf(question, m.rel(e.Path)), map[string]func(Model) (Model, tea.Cmd){
@@ -184,7 +188,7 @@ func (m Model) save() (Model, bool) {
 		m.file.refused = false
 		return m.say("saving "+m.rel(m.path())+": "+err.Error()+" (:e! to reload, :w to overwrite)", true), false
 	}
-	e.Dirty = false
+	e.MarkSaved()
 	return m, true
 }
 

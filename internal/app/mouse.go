@@ -135,7 +135,7 @@ func (m Model) click(e tea.Mouse) (Model, tea.Cmd) {
 func (m Model) overlayMouse(msg tea.MouseMsg) (Model, tea.Cmd) {
 	e := msg.Mouse()
 	blank := strings.Repeat("\n", max(0, m.h-1))
-	c, _ := m.layers(m.looks.theme, blank)
+	c, _ := m.layers(m.appearance.theme, blank)
 	hit := c.Hit(e.X, e.Y).ID()
 	p := m.overlay.p
 	switch msg.(type) {

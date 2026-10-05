@@ -39,8 +39,11 @@ func (e *Engine) Load(path string) error {
 		return err
 	}
 	e.Buf = NewBuffer(string(text))
-	e.Path, e.Dirty, e.Mode = path, false, Normal
+	e.Path, e.Mode = path, Normal
 	e.undo, e.redo, e.pending, e.keys, e.recording = nil, nil, nil, nil, false
+	e.changes++
+	e.baseID = e.changes // a fresh base: no older change id matches it
+	e.MarkSaved()
 	e.SetCursor(Pos{})
 	if missing {
 		e.Msg = fmt.Sprintf("%q [New]", path)
@@ -71,7 +74,8 @@ func (e *Engine) write(path string) bool {
 		return false
 	}
 	if own || e.Path == "" {
-		e.Path, e.Dirty = path, false
+		e.Path = path
+		e.MarkSaved()
 	}
 	e.Msg = fmt.Sprintf("%q %dL written", path, e.Buf.LineCount())
 	return true

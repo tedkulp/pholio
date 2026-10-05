@@ -149,12 +149,12 @@ func (m Model) taskRows(v taskView) []palette.Item {
 		slices.SortFunc(ts, compareTasks)
 		for _, t := range ts {
 			slot := g.slot
-			if t.Meta["pri"] == "high" && t.Status.IsOpen() && g != groupOverdue {
+			if t.Pri() == "high" && t.Status.IsOpen() && g != groupOverdue {
 				slot = theme.TasksPriHigh
 			}
 			items = append(items, palette.Item{
 				Text:       fmt.Sprintf("[%c] %s", t.Mark, t.Text),
-				Detail:     fmt.Sprintf("%s:%d", t.Path, t.Line+1),
+				Detail:     lineRef(t.Path, t.Line),
 				DetailSlot: theme.TasksSource,
 				Group:      fmt.Sprintf("%s (%d)", g.name, len(ts)),
 				Slot:       slot,
@@ -172,12 +172,12 @@ func groupOf(t index.Task, today time.Time, all bool) (taskGroup, bool) {
 		switch {
 		case all:
 			return groupAllDone, true
-		case t.Status == index.Done && t.Meta["done"] == today.Format(dates.ISO):
+		case t.Status == index.Done && t.DoneOn() == today.Format(dates.ISO):
 			return groupDone, true
 		}
 		return taskGroup{}, false
 	}
-	due, err := time.ParseInLocation(dates.ISO, t.Meta["due"], today.Location())
+	due, err := time.ParseInLocation(dates.ISO, t.Due(), today.Location())
 	switch {
 	case err != nil:
 		return groupNoDate, true
@@ -192,7 +192,7 @@ func groupOf(t index.Task, today time.Time, all bool) (taskGroup, bool) {
 // compareTasks orders Tasks by due date (undated last), then pri (high,
 // med, low, none), then file and line.
 func compareTasks(a, b index.Task) int {
-	da, db := a.Meta["due"], b.Meta["due"]
+	da, db := a.Due(), b.Due()
 	if (da == "") != (db == "") {
 		if da == "" {
 			return 1
@@ -208,7 +208,7 @@ func compareTasks(a, b index.Task) int {
 }
 
 func priRank(t index.Task) int {
-	switch strings.ToLower(t.Meta["pri"]) {
+	switch t.Pri() {
 	case "high":
 		return 0
 	case "med":
@@ -263,20 +263,21 @@ func (m Model) addTask(text string) Model {
 	line := tasks.Expand("- [ ] "+strings.TrimSpace(text), day)
 	heading := m.config().TasksHeading
 	path := m.dailyNotes().Path(day)
-	if path == m.path() {
-		e := m.ed.Engine()
+	err := m.editNote(path, func(e *engine.Engine) error {
 		lines := strings.Split(strings.TrimSuffix(e.Buf.String(), "\n"), "\n")
 		e.InsertLine(tasks.AddAt(lines, heading), line)
-		return m.syncIndex().say("Added a Task to "+m.rel(path), false)
-	}
-	path, err := m.ensureDaily(day)
-	if err == nil {
-		other := *m.file
-		other.path = ""
-		err = tasks.AddFile(&other, path, heading, line)
-	}
+		return nil
+	}, func(f *noteFile) error {
+		if _, err := m.ensureDaily(day); err != nil {
+			return err
+		}
+		return tasks.AddFile(f, path, heading, line)
+	})
 	if err != nil {
 		return m.say("adding a Task: "+err.Error(), true)
+	}
+	if path == m.path() {
+		m = m.syncIndex()
 	}
 	return m.say("Added a Task to "+m.rel(path), false)
 }

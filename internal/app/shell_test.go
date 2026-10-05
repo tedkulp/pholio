@@ -176,3 +176,13 @@ func TestUnboundLeaderKeySaysSo(t *testing.T) {
 		t.Errorf("message = %q", got)
 	}
 }
+
+func TestSidebarShowsUppercaseExtensionNotesAsNotes(t *testing.T) {
+	fsys := shellVault()
+	_ = fsys.WriteFile("/vault/Shout.MD", []byte("# Shout\n"))
+	m := shell(t, fsys, "/vault/a.md")
+
+	if got := screen(m); !strings.Contains(got, "Shout") || strings.Contains(got, "Shout.MD") {
+		t.Errorf("sidebar does not show Shout.MD as the Note Shout:\n%s", got)
+	}
+}

@@ -55,7 +55,21 @@ func TestTasksHonoursTheTemplatesDirOption(t *testing.T) {
 			t.Fatalf("Task from templates dir listed: %+v", task)
 		}
 	}
-	if len(ix.Tasks()) != 5 {
-		t.Errorf("Tasks() = %q", taskRows(ix.Tasks()))
+	if len(ix.Tasks()) != 4 {
+		t.Errorf("Tasks() = %q, want templates/ left out too", taskRows(ix.Tasks()))
+	}
+}
+
+func TestSetTemplatesDirChangesTheExtraExcludedFolder(t *testing.T) {
+	ix, _ := scanned(t, "tasks")
+	ix.SetTemplatesDir("projects")
+	for _, task := range ix.Tasks() {
+		if task.Path == "projects/garden.md" || task.Path == "templates/daily.md" {
+			t.Fatalf("excluded Task listed: %+v", task)
+		}
+	}
+	ix.SetTemplatesDir(".") // a daily_template at the Vault root
+	if got := len(ix.Tasks()); got != 7 {
+		t.Errorf("Tasks() = %q, want all but templates/", taskRows(ix.Tasks()))
 	}
 }

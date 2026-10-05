@@ -23,6 +23,10 @@ const (
 	actQuit          action = "quit"
 	actCycleTheme    action = "cycle-theme"
 	actReload        action = "reload"
+	actToday         action = "today"
+	actDailyPrev     action = "daily-prev"
+	actDailyNext     action = "daily-next"
+	actJumpToDate    action = "jump-to-date"
 )
 
 // scope is where a binding fires.
@@ -39,6 +43,10 @@ const (
 	// scopeSidebar keys fire when the sidebar has focus, before the tree's
 	// own navigation keys.
 	scopeSidebar
+	// scopeSequence keys are two-key sequences ("[d") that fire where
+	// scopeGlobal keys do. The first key waits for the second; when the
+	// pair is not bound, both go on as usual.
+	scopeSequence
 )
 
 // binding maps a key in a scope to an action. help is the leader hint.
@@ -61,6 +69,11 @@ var bindings = []binding{
 	{scopeGlobal, "ctrl+l", actFocusEditor, ""},
 
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
+	{scopeLeader, "d", actToday, "today"},
+	{scopeLeader, "D", actJumpToDate, "date"},
+
+	{scopeSequence, "[d", actDailyPrev, ""},
+	{scopeSequence, "]d", actDailyNext, ""},
 
 	{scopeSidebar, "tab", actFocusEditor, ""},
 	{scopeSidebar, "esc", actFocusEditor, ""},
@@ -72,6 +85,8 @@ var bindings = []binding{
 // action's argument. The engine's built-ins (:w, :q, :e) win over these.
 var exCommands = map[string]action{
 	"sidebar": actToggleSidebar,
+	"today":   actToday,
+	"daily":   actJumpToDate,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -91,6 +106,10 @@ func init() {
 		actQuit:          func(m Model, _ string) (Model, tea.Cmd) { return m.requestQuit() },
 		actCycleTheme:    func(m Model, _ string) (Model, tea.Cmd) { return m.cycleTheme(), nil },
 		actReload:        func(m Model, _ string) (Model, tea.Cmd) { return m.reload(), nil },
+		actToday:         func(m Model, _ string) (Model, tea.Cmd) { return m.openDaily(m.today()) },
+		actDailyPrev:     func(m Model, _ string) (Model, tea.Cmd) { return m.stepDaily(-1) },
+		actDailyNext:     func(m Model, _ string) (Model, tea.Cmd) { return m.stepDaily(1) },
+		actJumpToDate:    func(m Model, arg string) (Model, tea.Cmd) { return m.jumpToDate(arg) },
 	}
 }
 
@@ -111,6 +130,30 @@ func (m Model) run(a action, arg string) (Model, tea.Cmd) {
 		return m.say(string(a)+": not available yet", true), nil
 	}
 	return h(m, arg)
+}
+
+// startsSequence reports whether key is the first key of a bound
+// sequence.
+func startsSequence(key string) bool {
+	for _, b := range bindings {
+		if b.scope == scopeSequence && len(b.key) > len(key) && strings.HasPrefix(b.key, key) {
+			return true
+		}
+	}
+	return false
+}
+
+// sequenceKey runs the key after the first key of a sequence. When the
+// pair is not bound, the first key goes to the editor and the second is
+// routed as usual.
+func (m Model) sequenceKey(first, msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if a, ok := lookup(scopeSequence, keyName(first)+keyName(msg)); ok {
+		return m.run(a, "")
+	}
+	if !m.sidebarFocused() {
+		m, _ = m.editorKey(first)
+	}
+	return m.key(msg)
 }
 
 // leaderHint lists the leader keys: "e sidebar  t tasks".

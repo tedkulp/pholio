@@ -43,20 +43,13 @@ func run(args []string) error {
 		return err
 	}
 
-	path := s.Target.File
-	if path == "" {
-		// Placeholder until the Daily Notes ticket: open today's Daily Note
-		// path (Today shifted by day_starts_at) without a template.
-		today := clock.Now().Add(-s.Config.DayStartsAt).Format("2006-01-02")
-		path = filepath.Join(s.Target.Vault, s.Config.DailyFolder, today+".md")
-	}
 	vault, watchErr := startWatching(fsys, s.Target.Vault)
 	defer func() { _ = vault.Close() }()
-	m, err := app.New(app.Deps{FS: fsys, Clock: clock, Watch: vault}, path)
+	// With no file argument this opens (or creates) today's Daily Note.
+	m, err := app.Start(app.Deps{FS: fsys, Clock: clock, Watch: vault}, s)
 	if err != nil {
 		return err
 	}
-	m = m.WithSession(s)
 	if watchErr != nil {
 		m = m.WithWatchError(watchErr)
 	}

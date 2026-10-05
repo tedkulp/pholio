@@ -30,6 +30,9 @@ type parsed struct {
 // argKeys take one literal key as their argument.
 var argKeys = map[string]bool{"f": true, "F": true, "t": true, "T": true, "r": true}
 
+// searchKeys start a "/" or "?" line; after an operator they are its motion.
+var searchKeys = map[string]bool{"/": true, "?": true}
+
 var operators = map[string]bool{"d": true, "c": true, "y": true}
 
 func digit(k string) (int, bool) {
@@ -39,7 +42,7 @@ func digit(k string) (int, bool) {
 	return 0, false
 }
 
-func parse(keys []string) (p parsed, st parseState) {
+func parse(keys []string, visual bool) (p parsed, st parseState) {
 	i := 0
 	next := func() (string, bool) {
 		if i < len(keys) {
@@ -79,7 +82,7 @@ func parse(keys []string) (p parsed, st parseState) {
 		return p, incomplete
 	}
 	restStart := i - 1
-	if operators[k] {
+	if operators[k] && !visual {
 		p.op = k
 		if k, ok = next(); !ok {
 			return p, incomplete
@@ -98,7 +101,7 @@ func parse(keys []string) (p parsed, st parseState) {
 	switch {
 	case p.op != "" && k == p.op:
 		p.name = "line"
-	case p.op != "" && (k == "i" || k == "a"):
+	case (p.op != "" || visual) && (k == "i" || k == "a"):
 		k2, ok := next()
 		if !ok {
 			return p, incomplete
@@ -124,7 +127,11 @@ func parse(keys []string) (p parsed, st parseState) {
 	_, isMotion := motions[p.name]
 	switch {
 	case p.op != "":
-		if !isMotion && !isObject(p.name) && p.name != "line" {
+		if !isMotion && !isObject(p.name) && p.name != "line" && !searchKeys[p.name] {
+			return p, invalid
+		}
+	case visual:
+		if _, ok := visualCmds[p.name]; !ok && !isMotion && !isObject(p.name) {
 			return p, invalid
 		}
 	default:
@@ -144,7 +151,8 @@ func isObject(name string) bool {
 }
 
 func (e *Engine) normalKey() {
-	p, st := parse(e.keys)
+	visual := e.Mode.visual()
+	p, st := parse(e.keys, visual)
 	if st == incomplete {
 		return
 	}
@@ -153,9 +161,17 @@ func (e *Engine) normalKey() {
 		return
 	}
 	switch {
+	case p.op != "" && searchKeys[p.name]:
+		// d/foo: the operator finishes when the search line is entered.
+		e.startCmdline(Search, p.name == "?")
+		e.cmd.opPending = &p
 	case p.op != "":
 		e.applyOp(p)
 		e.setDot(p)
+	case visual && visualCmds[p.name] != nil:
+		visualCmds[p.name](e, p)
+	case visual && isObject(p.name):
+		e.selectObject(p.name)
 	case motions[p.name] != nil:
 		e.doMotion(p)
 	default:

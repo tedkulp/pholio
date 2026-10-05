@@ -50,7 +50,7 @@ func (m Model) indexScanned(msg indexReadyMsg) Model {
 	if m.overlay != nil && m.overlay.ready != nil {
 		m = m.overlay.ready(m)
 	}
-	return m
+	return m.syncCompletion(false)
 }
 
 // editedIndex schedules feeding the open buffer to the index when an edit

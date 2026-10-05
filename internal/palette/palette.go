@@ -32,7 +32,10 @@ const (
 type Item struct {
 	Text   string // the row's main text
 	Detail string // right-aligned, drawn with overlay.hint (a path:line)
-	Group  string // a header row is drawn whenever this changes
+	// DetailSlot styles Detail when the row is not selected. Zero means
+	// overlay.hint.
+	DetailSlot theme.Slot
+	Group      string // a header row is drawn whenever this changes
 	// Slot styles Text when the row is not selected. Zero means overlay.box.
 	Slot theme.Slot
 	// Marks are [start, end) byte ranges of Text drawn with
@@ -133,6 +136,29 @@ func (m Model) Selected() (item Item, index int, ok bool) {
 		return m.items[i], i, true
 	}
 	return Item{}, -1, false
+}
+
+// Visible is the items that pass the filter, in display order.
+func (m Model) Visible() []Item {
+	out := make([]Item, len(m.visible))
+	for vi, i := range m.visible {
+		out[vi] = m.items[i]
+	}
+	return out
+}
+
+// Select moves the selection to the row showing item i (an index into the
+// items given to SetItems), or to the nearest row when i is filtered out
+// or past the end.
+func (m Model) Select(i int) Model {
+	for vi, idx := range m.visible {
+		if idx >= i {
+			m.sel = vi
+			return m
+		}
+	}
+	m.sel = max(0, len(m.visible)-1)
+	return m
 }
 
 // Substring is the default Matcher.
@@ -336,7 +362,11 @@ func row(th theme.Theme, it Item, w int, selected bool) string {
 	if len(it.Marks) > 0 {
 		styled = marked(th, it, slot, ansi.StringWidth(text))
 	}
-	return styled + strings.Repeat(" ", gap) + th.Style(theme.OverlayHint).Render(detail)
+	dslot := it.DetailSlot
+	if dslot == "" {
+		dslot = theme.OverlayHint
+	}
+	return styled + strings.Repeat(" ", gap) + th.Style(dslot).Render(detail)
 }
 
 // marked draws it.Text in slot with its Marks in markdown.search, fitted

@@ -263,20 +263,21 @@ func (m Model) addTask(text string) Model {
 	line := tasks.Expand("- [ ] "+strings.TrimSpace(text), day)
 	heading := m.config().TasksHeading
 	path := m.dailyNotes().Path(day)
-	if path == m.path() {
-		e := m.ed.Engine()
+	err := m.editNote(path, func(e *engine.Engine) error {
 		lines := strings.Split(strings.TrimSuffix(e.Buf.String(), "\n"), "\n")
 		e.InsertLine(tasks.AddAt(lines, heading), line)
-		return m.syncIndex().say("Added a Task to "+m.rel(path), false)
-	}
-	path, err := m.ensureDaily(day)
-	if err == nil {
-		other := *m.file
-		other.path = ""
-		err = tasks.AddFile(&other, path, heading, line)
-	}
+		return nil
+	}, func(f *noteFile) error {
+		if _, err := m.ensureDaily(day); err != nil {
+			return err
+		}
+		return tasks.AddFile(f, path, heading, line)
+	})
 	if err != nil {
 		return m.say("adding a Task: "+err.Error(), true)
+	}
+	if path == m.path() {
+		m = m.syncIndex()
 	}
 	return m.say("Added a Task to "+m.rel(path), false)
 }

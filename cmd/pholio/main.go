@@ -53,10 +53,6 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	_, err = tea.NewProgram(m).Run()
-	if s.Message != "" {
-		// Until the status line can show it, report config problems on exit.
-		fmt.Fprintln(os.Stderr, "pholio:", s.Message)
-	}
+	_, err = tea.NewProgram(m.WithSession(s)).Run()
 	return err
 }

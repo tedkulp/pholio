@@ -53,7 +53,7 @@ func TestMissingFileOpensEmpty(t *testing.T) {
 	}
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 20, Height: 3})
 
-	want := "\n\n new.md             " // the status line fills the width
+	want := "                    \n NORMAL  new.md 1:1 \n" // text row, status line, empty message line
 	if got := ansi.Strip(next.View().Content); got != want {
 		t.Fatalf("view = %q, want %q", got, want)
 	}

@@ -49,7 +49,8 @@ var (
 	f8 = tea.KeyPressMsg{Code: tea.KeyF8}
 )
 
-func statusLine(m app.Model) string {
+// messageLine is the bottom row, below the status line.
+func messageLine(m app.Model) string {
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
 	return strings.TrimRight(lines[len(lines)-1], " ")
 }
@@ -69,8 +70,8 @@ func TestStartsWithTheConfiguredTheme(t *testing.T) {
 	if !drawnWith(m, fsys, "light") {
 		t.Fatalf("status line not drawn with the light theme:\n%q", m.View().Content)
 	}
-	if got := statusLine(m); got != " a.md" {
-		t.Errorf("status line = %q, want no message", got)
+	if got := messageLine(m); got != "" {
+		t.Errorf("message line = %q, want no message", got)
 	}
 }
 
@@ -80,7 +81,7 @@ func TestStatusLineFillsTheWidth(t *testing.T) {
 	m := started(t, fsys)
 
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
-	if got := ansi.StringWidth(lines[len(lines)-1]); got != 60 {
+	if got := ansi.StringWidth(lines[len(lines)-2]); got != 60 {
 		t.Errorf("status line is %d cells wide, want 60", got)
 	}
 }
@@ -90,8 +91,8 @@ func TestStartupReportsThemeAndConfigProblems(t *testing.T) {
 
 	m := started(t, fsys)
 
-	want := ` a.md  config: ` + userConfig + `: unknown key "bogus"  theme: no theme named "nosuch"`
-	if got := statusLine(resize(m, 200, 5)); got != want {
+	want := `config: ` + userConfig + `: unknown key "bogus"  theme: no theme named "nosuch"`
+	if got := messageLine(resize(m, 200, 5)); got != want {
 		t.Errorf("status line =\n %q\nwant\n %q", got, want)
 	}
 	if !drawnWith(m, fsys, "default") {
@@ -105,7 +106,7 @@ func TestF7CyclesThemes(t *testing.T) {
 
 	for _, want := range []string{"ansi16", "light", "mine", "default", "ansi16"} {
 		m = press(m, f7)
-		if got := statusLine(m); got != " a.md  theme: "+want {
+		if got := messageLine(m); got != "theme: "+want {
 			t.Fatalf("after F7 status line = %q, want theme %s", got, want)
 		}
 		if !drawnWith(m, fsys, want) {
@@ -120,8 +121,8 @@ func TestF7ReportsProblemsInTheNextTheme(t *testing.T) {
 
 	m = press(m, f7)
 
-	want := ` a.md  theme: ` + themeDir + `/aaa.toml: unknown slot "ui.nope"`
-	if got := statusLine(resize(m, 200, 5)); got != want {
+	want := `theme: ` + themeDir + `/aaa.toml: unknown slot "ui.nope"`
+	if got := messageLine(resize(m, 200, 5)); got != want {
 		t.Errorf("status line = %q, want %q", got, want)
 	}
 }
@@ -141,7 +142,7 @@ func TestF8ReloadsConfigAndTheme(t *testing.T) {
 	if !drawnWith(m, fsys, "mine") {
 		t.Fatal("F8 did not switch to the configured theme")
 	}
-	if got := statusLine(m); got != " a.md  reloaded config and theme" {
+	if got := messageLine(m); got != "reloaded config and theme" {
 		t.Errorf("status line = %q", got)
 	}
 
@@ -174,13 +175,13 @@ func TestProblemsUseTheErrorSlotAndNoticesTheMessageSlot(t *testing.T) {
 	m = press(m, f7) // aaa, with a problem
 	aaa, _ := theme.Load(fsys, themeDir, "aaa")
 	problem := `theme: ` + themeDir + `/aaa.toml: unknown slot "ui.nope"`
-	if !strings.Contains(m.View().Content, aaa.Style(theme.UIError).Inherit(aaa.Style(theme.UIStatusline)).Render(problem)) {
+	if !strings.Contains(m.View().Content, aaa.Style(theme.UIError).Render(problem)) {
 		t.Errorf("problem not drawn with ui.error:\n%q", m.View().Content)
 	}
 
 	m = press(m, f7) // ansi16, fine
 	ansi16, _ := theme.Load(fsys, themeDir, "ansi16")
-	if !strings.Contains(m.View().Content, ansi16.Style(theme.UIMessage).Inherit(ansi16.Style(theme.UIStatusline)).Render("theme: ansi16")) {
+	if !strings.Contains(m.View().Content, ansi16.Style(theme.UIMessage).Render("theme: ansi16")) {
 		t.Errorf("notice not drawn with ui.message:\n%q", m.View().Content)
 	}
 }
@@ -194,8 +195,8 @@ func TestF8ReportsConfigProblems(t *testing.T) {
 
 	m = press(m, f8)
 
-	want := ` a.md  config: ` + userConfig + `: unknown key "bogus"`
-	if got := statusLine(resize(m, 200, 5)); got != want {
+	want := `config: ` + userConfig + `: unknown key "bogus"`
+	if got := messageLine(resize(m, 200, 5)); got != want {
 		t.Errorf("status line = %q, want %q", got, want)
 	}
 }

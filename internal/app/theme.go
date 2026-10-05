@@ -30,6 +30,7 @@ func (m Model) WithSession(s config.Session) Model {
 	problems := m.loadTheme(s.Config.Theme)
 	m.looks.configured = s.Config.Theme
 	m.wrap, m.conceal = s.Config.Wrap, s.Config.Conceal
+	m.noMouse = !s.Config.Mouse
 	m.vault = s.Target.Vault
 	m.ed = m.newEditor(m.ed.Engine())
 	m.side = sidebar.New(m.deps.FS, m.vault).Reveal(m.path())
@@ -88,6 +89,7 @@ func (m Model) reload() Model {
 		s.Config, configMsg = cfg, msg
 		m.session = &s
 		m.wrap, m.conceal = cfg.Wrap, cfg.Conceal
+		m.noMouse = !cfg.Mouse
 		m.ed = m.ed.SetWrap(cfg.Wrap).SetConceal(cfg.Conceal)
 		if cfg.Theme != m.looks.configured {
 			name, m.looks.configured = cfg.Theme, cfg.Theme

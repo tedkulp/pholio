@@ -31,6 +31,7 @@ const (
 	actGoToLink      action = "go-to-link"
 	actJumpBack      action = "jump-back"
 	actJumpForward   action = "jump-forward"
+	actFindNote      action = "find-note"
 )
 
 // scope is where a binding fires.
@@ -79,6 +80,7 @@ var bindings = []binding{
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},
 	{scopeLeader, "D", actJumpToDate, "date"},
+	{scopeLeader, "f", actFindNote, "find"},
 
 	{scopeSequence, "[d", actDailyPrev, ""},
 	{scopeSequence, "]d", actDailyNext, ""},
@@ -100,6 +102,7 @@ var exCommands = map[string]action{
 	"sidebar": actToggleSidebar,
 	"today":   actToday,
 	"daily":   actJumpToDate,
+	"find":    actFindNote,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -127,6 +130,7 @@ func init() {
 		actGoToLink:      func(m Model, _ string) (Model, tea.Cmd) { return m.goToLink() },
 		actJumpBack:      func(m Model, _ string) (Model, tea.Cmd) { return m.jumpBack() },
 		actJumpForward:   func(m Model, _ string) (Model, tea.Cmd) { return m.jumpForward() },
+		actFindNote:      func(m Model, arg string) (Model, tea.Cmd) { return m.findNote(arg) },
 	}
 }
 

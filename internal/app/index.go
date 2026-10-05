@@ -47,7 +47,7 @@ func (m Model) indexScanned(msg indexReadyMsg) Model {
 	if m.ed.Engine().Dirty {
 		m = m.syncIndex()
 	}
-	return m
+	return m.refreshPickers()
 }
 
 // editedIndex schedules feeding the open buffer to the index when an edit

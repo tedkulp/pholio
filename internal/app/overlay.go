@@ -26,6 +26,8 @@ type paletteHandler func(m Model, ev palette.Event) (Model, tea.Cmd)
 type overlay struct {
 	p  palette.Model
 	on paletteHandler
+	// refresh, if set, recomputes the rows once the index has scanned.
+	refresh func(Model) Model
 }
 
 // paletteMsg opens a palette from a tea.Cmd.
@@ -53,11 +55,13 @@ func (m Model) overlayPaste(s string) (Model, tea.Cmd) {
 }
 
 func (m Model) paletteEvent(p palette.Model, ev palette.Event) (Model, tea.Cmd) {
-	on := m.overlay.on
+	o := *m.overlay
+	on := o.on
 	if ev.Kind == palette.Closed || ev.Kind == palette.Chosen {
 		m.overlay = nil
 	} else {
-		m.overlay = &overlay{p: p, on: on}
+		o.p = p
+		m.overlay = &o
 	}
 	if ev.Kind == palette.None || on == nil {
 		return m, nil

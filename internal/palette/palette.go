@@ -35,6 +35,9 @@ type Item struct {
 	Group  string // a header row is drawn whenever this changes
 	// Slot styles Text when the row is not selected. Zero means overlay.box.
 	Slot theme.Slot
+	// Marks are [start, end) byte ranges of Text drawn with
+	// markdown.search when the row is not selected (search matches).
+	Marks [][2]int
 	// Value is the host's payload, such as a path or a Task.
 	Value any
 }
@@ -329,7 +332,31 @@ func row(th theme.Theme, it Item, w int, selected bool) string {
 	if slot == "" {
 		slot = theme.OverlayBox
 	}
-	return th.Style(slot).Render(text) + strings.Repeat(" ", gap) + th.Style(theme.OverlayHint).Render(detail)
+	styled := th.Style(slot).Render(text)
+	if len(it.Marks) > 0 {
+		styled = marked(th, it, slot, ansi.StringWidth(text))
+	}
+	return styled + strings.Repeat(" ", gap) + th.Style(theme.OverlayHint).Render(detail)
+}
+
+// marked draws it.Text in slot with its Marks in markdown.search, fitted
+// to w cells.
+func marked(th theme.Theme, it Item, slot theme.Slot, w int) string {
+	base, hl := th.Style(slot), th.Style(theme.MarkdownSearch)
+	var b strings.Builder
+	at := 0
+	for _, mk := range it.Marks {
+		start, end := max(mk[0], at), min(mk[1], len(it.Text))
+		if start >= end {
+			continue
+		}
+		b.WriteString(base.Render(it.Text[at:start]))
+		b.WriteString(hl.Render(it.Text[start:end]))
+		at = end
+	}
+	b.WriteString(base.Render(it.Text[at:]))
+	s := ansi.Truncate(b.String(), w, "…")
+	return s + base.Render(strings.Repeat(" ", max(0, w-ansi.StringWidth(s))))
 }
 
 // frame draws a rounded border around lines with the title in the top edge.

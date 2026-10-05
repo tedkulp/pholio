@@ -26,6 +26,9 @@ type paletteHandler func(m Model, ev palette.Event) (Model, tea.Cmd)
 type overlay struct {
 	p  palette.Model
 	on paletteHandler
+	// ready, if set, refreshes the items once the Vault index is built,
+	// for a palette opened while it said "indexing…".
+	ready func(m Model) Model
 }
 
 // paletteMsg opens a palette from a tea.Cmd.
@@ -57,7 +60,7 @@ func (m Model) paletteEvent(p palette.Model, ev palette.Event) (Model, tea.Cmd) 
 	if ev.Kind == palette.Closed || ev.Kind == palette.Chosen {
 		m.overlay = nil
 	} else {
-		m.overlay = &overlay{p: p, on: on}
+		m.overlay = &overlay{p: p, on: on, ready: m.overlay.ready}
 	}
 	if ev.Kind == palette.None || on == nil {
 		return m, nil

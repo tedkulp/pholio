@@ -154,19 +154,24 @@ func (m Model) askedToOverwrite() Model {
 }
 
 // answerOverwrite handles the key typed at the y/N prompt.
-func (m Model) answerOverwrite(k tea.KeyPressMsg) Model {
-	m.confirming = false
+// After a :wq or :x, y also quits once the write goes through.
+func (m Model) answerOverwrite(k tea.KeyPressMsg) (Model, tea.Cmd) {
+	quit := m.quitAfterWrite
+	m.confirming, m.quitAfterWrite = false, false
 	m.message, m.problem = "", false
 	if k.String() != "y" {
-		return m
+		return m, nil
 	}
 	e := m.ed.Engine()
 	m.file.stale = false
 	if err := m.file.WriteFile(m.path(), []byte(e.Buf.String())); err != nil {
 		m.message, m.problem = "E212: Can't open file for writing: "+err.Error(), true
-		return m
+		return m, nil
 	}
 	e.MarkSaved()
 	e.Msg = fmt.Sprintf("%q %dL written", m.path(), e.Buf.LineCount())
-	return m
+	if quit {
+		return m.requestQuit()
+	}
+	return m, nil
 }

@@ -70,6 +70,9 @@ type Model struct {
 	problem bool   // the message reports a problem
 
 	confirming bool // the overwrite y/N prompt is up (disk.go)
+	// quitAfterWrite: the overwrite prompt is up for a :wq or :x, which
+	// quits once the write goes through.
+	quitAfterWrite bool
 
 	noMouse bool // mouse = false: no mouse mode is requested (mouse.go)
 	drag    bool // the sidebar border is being dragged (mouse.go)
@@ -195,11 +198,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // leader, global keys, the sidebar and finally the editor.
 func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	name := keyName(msg)
+	if name == "ctrl+q" { // quits from anywhere, still asking about unsaved text
+		m.prompt, m.confirming, m.quitAfterWrite = nil, false, false
+	}
 	if m.prompt != nil {
 		return m.answer(name)
 	}
-	if m.confirming && name != "ctrl+q" {
-		return m.answerOverwrite(msg), nil
+	if m.confirming {
+		return m.answerOverwrite(msg)
 	}
 	if a, ok := lookup(scopeApp, name); ok {
 		return m.run(a, "")
@@ -269,19 +275,28 @@ func (m Model) normalIdle() bool {
 func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	m.message, m.problem = "", false
 	e := m.ed.Engine()
+	writeQuit := false
 	if e.Mode == engine.Command && keyName(msg) == "enter" {
 		if prompt, text := e.CmdLine(); prompt == ":" {
-			switch strings.Fields(text + " ")[0] {
+			switch name := strings.Fields(text + " ")[0]; name {
 			case "q", "quit":
 				e.Feed("esc")
 				return m.requestQuit()
 			case "q!", "quit!":
 				return m, tea.Quit
+			default:
+				switch strings.TrimSuffix(name, "!") {
+				case "wq", "x", "xit":
+					writeQuit = true
+				}
 			}
 		}
 	}
 	m.ed = m.ed.Update(msg)
 	m = m.askedToOverwrite()
+	if m.confirming && writeQuit {
+		m.quitAfterWrite = true
+	}
 	m, cmd := m.drainEx()
 	if e.Quit { // :wq and :x, once written
 		e.Quit = false

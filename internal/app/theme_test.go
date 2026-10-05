@@ -20,7 +20,8 @@ const (
 
 var dirs = config.Dirs{ConfigHome: "/home/u/.config", StateHome: "/home/u/.local/state"}
 
-// started runs config startup over fsys and opens /vault/a.md with it.
+// started runs config startup over fsys and opens /vault/a.md with it,
+// with the sidebar hidden so the editor has the whole width.
 func started(t *testing.T, fsys *seamtest.MemFS) app.Model {
 	t.Helper()
 	s, err := config.Startup(fsys, dirs, "/home/u", "/vault/a.md")
@@ -31,7 +32,8 @@ func started(t *testing.T, fsys *seamtest.MemFS) app.Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return resize(m.WithSession(s), 60, 5)
+	m = resize(m.WithSession(s), 60, 5)
+	return press(press(m, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}), tea.KeyPressMsg{Code: 'e', Text: "e"})
 }
 
 func resize(m app.Model, w, h int) app.Model {

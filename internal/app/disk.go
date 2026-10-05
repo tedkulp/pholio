@@ -122,7 +122,7 @@ func (m Model) checkDisk() Model {
 		f.disk, f.exists = sha256.Sum256(data), true
 		f.stale, f.deleted = false, false
 		if m.w > 0 {
-			m.ed = m.ed.SetSize(m.w, m.h-2) // re-scroll over the new text
+			m = m.relayout() // re-scroll over the new text
 		}
 		return m
 	}
@@ -154,11 +154,11 @@ func (m Model) answerOverwrite(k tea.KeyPressMsg) Model {
 	}
 	e := m.ed.Engine()
 	m.file.stale = false
-	if err := m.file.WriteFile(m.path, []byte(e.Buf.String())); err != nil {
+	if err := m.file.WriteFile(m.path(), []byte(e.Buf.String())); err != nil {
 		m.message, m.problem = "E212: Can't open file for writing: "+err.Error(), true
 		return m
 	}
 	e.Dirty = false
-	e.Msg = fmt.Sprintf("%q %dL written", m.path, e.Buf.LineCount())
+	e.Msg = fmt.Sprintf("%q %dL written", m.path(), e.Buf.LineCount())
 	return m
 }

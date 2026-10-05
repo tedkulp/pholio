@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/tedkulp/pholio/internal/config"
+	"github.com/tedkulp/pholio/internal/sidebar"
 	"github.com/tedkulp/pholio/internal/theme"
 )
 
@@ -28,10 +29,21 @@ func (m Model) WithSession(s config.Session) Model {
 	m.session = &s
 	problems := m.loadTheme(s.Config.Theme)
 	m.looks.configured = s.Config.Theme
-	m.ed = m.ed.SetWrap(s.Config.Wrap).SetConceal(s.Config.Conceal)
-	m.message = joinMessages(s.Message, theme.Message(problems))
+	m.wrap, m.conceal = s.Config.Wrap, s.Config.Conceal
+	m.vault = s.Target.Vault
+	m.ed = m.newEditor(m.ed.Engine())
+	m.side = sidebar.New(m.deps.FS, m.vault).Reveal(m.path())
+	store := config.NewStateStore(m.deps.FS, s.Dirs)
+	m.state = &store
+	st, err := store.Load()
+	m.sideW = st.SidebarWidth
+	stateMsg := ""
+	if err != nil {
+		stateMsg = "state: " + err.Error()
+	}
+	m.message = joinMessages(s.Message, theme.Message(problems), stateMsg)
 	m.problem = m.message != ""
-	return m
+	return m.relayout()
 }
 
 func (m Model) themeDir() string {
@@ -75,6 +87,7 @@ func (m Model) reload() Model {
 		cfg, msg := s.Reload(m.deps.FS)
 		s.Config, configMsg = cfg, msg
 		m.session = &s
+		m.wrap, m.conceal = cfg.Wrap, cfg.Conceal
 		m.ed = m.ed.SetWrap(cfg.Wrap).SetConceal(cfg.Conceal)
 		if cfg.Theme != m.looks.configured {
 			name, m.looks.configured = cfg.Theme, cfg.Theme

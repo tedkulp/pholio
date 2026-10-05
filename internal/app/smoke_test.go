@@ -46,6 +46,17 @@ func (s *vtScreen) update(out []byte) string {
 	return s.emu.String()
 }
 
+// waitFor waits until the screen satisfies cond. Each teatest.WaitFor
+// reads only output not consumed by an earlier one, so the slice it hands
+// over starts afresh.
+func (s *vtScreen) waitFor(t *testing.T, tm *teatest.TestModel, cond func(screen string) bool) {
+	t.Helper()
+	s.seen = 0
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return cond(s.update(out))
+	}, teatest.WithDuration(3*time.Second))
+}
+
 func TestSmokeStartShowsNoteAndCtrlQQuits(t *testing.T) {
 	vault := testutil.CopyVault(t, "basic")
 	m, err := app.New(app.Deps{FS: seam.OSFS{}, Clock: seam.SystemClock{}}, filepath.Join(vault, "README.md"))
@@ -83,9 +94,13 @@ func TestSmokeTypingEditsTheNote(t *testing.T) {
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEsc})
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		s := scr.update(out)
-		return strings.Contains(s, "Hello Welcome to the basic Vault") && strings.Contains(s, "NORMAL  README.md [+]")
+		return strings.Contains(s, "Hello Welcome to the basic") && strings.Contains(s, "NORMAL  README.md [+]")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
+	scr.waitFor(t, tm, func(s string) bool {
+		return strings.Contains(s, "Save changes to README.md before quitting?")
+	})
+	tm.Send(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }

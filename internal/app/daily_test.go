@@ -169,6 +169,29 @@ func TestPrevAndNextDailyNoteSkipGapsAndNeverCreate(t *testing.T) {
 	}
 }
 
+func TestDailyStepsAreRecordedInTheJumplist(t *testing.T) {
+	vault, d := dailyVault(t)
+	m := start(t, vault, d, "", monday)
+
+	m = typeKeys(m, "]d")
+	wantOpen(t, m, "daily/2026-10-08.md")
+	m = press(m, ctrlO)
+	wantOpen(t, m, "daily/2026-10-05.md")
+	m = press(m, tab)
+	wantOpen(t, m, "daily/2026-10-08.md")
+}
+
+func TestSpcDIsRecordedInTheJumplist(t *testing.T) {
+	vault, d := dailyVault(t)
+	m := start(t, vault, d, filepath.Join(vault, "README.md"), monday)
+
+	m = keys(m, space)
+	m = typeKeys(m, "d")
+	wantOpen(t, m, "daily/2026-10-05.md")
+	m = press(m, ctrlO)
+	wantOpen(t, m, "README.md")
+}
+
 func TestPrevDailyNoteFromAnotherNoteStartsAtToday(t *testing.T) {
 	vault, d := dailyVault(t)
 	m := start(t, vault, d, filepath.Join(vault, "README.md"), monday)

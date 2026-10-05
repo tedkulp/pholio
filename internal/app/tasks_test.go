@@ -28,15 +28,6 @@ func taskVault(t *testing.T) (app.Model, string) {
 	return start(t, vault, d, filepath.Join(vault, "todo.md"), beforeDawn), vault
 }
 
-func readFile(t *testing.T, path string) string {
-	t.Helper()
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
-
 func TestMarkingATaskDoneStampsItWithToday(t *testing.T) {
 	m, _ := taskVault(t)
 

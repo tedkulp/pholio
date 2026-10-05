@@ -78,34 +78,69 @@ func (m Model) sidebarKey(name string) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// saveBeforeSwitch asks about a dirty buffer before another Note replaces it.
+const saveBeforeSwitch = "Save changes to %s? y save · n discard · esc cancel"
+
 // openNote shows the Note at path in the editor and focuses it. The open
 // Note is the only buffer, so a dirty one is saved or discarded first,
 // after asking. Opening the Note that is already open just focuses it.
-func (m Model) openNote(path string) (Model, tea.Cmd) {
+// Every switch is recorded in the jumplist.
+func (m Model) openNote(path string) (Model, tea.Cmd) { return m.openAt(path, nil) }
+
+// openAt is openNote followed by at, which places the cursor in the opened
+// Note (a heading, a Task's line). With at, opening the Note that is
+// already open is a jump within it, and it is recorded too.
+func (m Model) openAt(path string, at func(Model) Model) (Model, tea.Cmd) {
+	return m.openThen(path, nil, at)
+}
+
+// openThen is openAt with before, which runs once the dirty buffer has been
+// dealt with and before the switch (creating a Daily Note). An error from
+// before is shown and nothing is opened.
+func (m Model) openThen(path string, before func(Model) error, at func(Model) Model) (Model, tea.Cmd) {
+	from := m.here()
 	if path == m.path() {
 		m.focus = focusEditor
-		return m, nil
+		if at == nil {
+			return m, nil
+		}
+		m.jumps = m.jumps.push(from)
+		return at(m), nil
 	}
 	return m.unlessDirty(saveBeforeSwitch, func(m Model) (Model, tea.Cmd) {
-		return m.switchTo(path), nil
+		if before != nil {
+			if err := before(m); err != nil {
+				return m.say(err.Error(), true), nil
+			}
+		}
+		m, ok := m.switchTo(path)
+		if !ok {
+			return m, nil
+		}
+		m.jumps = m.jumps.push(from)
+		if at != nil {
+			m = at(m)
+		}
+		return m, nil
 	})
 }
 
-// saveBeforeSwitch asks about a dirty buffer before another Note replaces
-// it.
-const saveBeforeSwitch = "Save changes to %s? y save · n discard · esc cancel"
-
-// switchTo replaces the editor's buffer with the Note at path.
-func (m Model) switchTo(path string) Model {
+// switchTo replaces the editor's buffer with the Note at path. ok is false
+// (and the message says why) when it could not be read.
+func (m Model) switchTo(path string) (Model, bool) {
 	file, e, err := m.openEngine(path)
 	if err != nil {
-		return m.say(err.Error(), true)
+		return m.say(err.Error(), true), false
+	}
+	if m.ed.Engine().Dirty { // its text is being discarded
+		m = m.unsyncIndex()
 	}
 	m.file, m.confirming = file, false
 	m.ed = m.newEditor(e)
+	m.fed = e.Buf.Version()
 	m.side = m.side.Reveal(path)
 	m.focus = focusEditor
-	return m.relayout()
+	return m.relayout(), true
 }
 
 // requestQuit (ctrl+q, :q) quits, asking first when the buffer is dirty.

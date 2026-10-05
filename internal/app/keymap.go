@@ -27,6 +27,11 @@ const (
 	actDailyPrev     action = "daily-prev"
 	actDailyNext     action = "daily-next"
 	actJumpToDate    action = "jump-to-date"
+	actFollowLink    action = "follow-link"
+	actGoToLink      action = "go-to-link"
+	actJumpBack      action = "jump-back"
+	actJumpForward   action = "jump-forward"
+	actZettel        action = "zettel"
 )
 
 // scope is where a binding fires.
@@ -47,6 +52,10 @@ const (
 	// scopeGlobal keys do. The first key waits for the second; when the
 	// pair is not bound, both go on as usual.
 	scopeSequence
+	// scopeNormal keys fire in the editor in normal mode with nothing
+	// pending, before the engine sees them. (gd, two keys, is matched in
+	// Model.key.)
+	scopeNormal
 )
 
 // binding maps a key in a scope to an action. help is the leader hint.
@@ -71,6 +80,7 @@ var bindings = []binding{
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},
 	{scopeLeader, "D", actJumpToDate, "date"},
+	{scopeLeader, "z", actZettel, "zettel"},
 
 	{scopeSequence, "[d", actDailyPrev, ""},
 	{scopeSequence, "]d", actDailyNext, ""},
@@ -79,6 +89,11 @@ var bindings = []binding{
 	{scopeSidebar, "esc", actFocusEditor, ""},
 	{scopeSidebar, "<", actSidebarNarrow, ""},
 	{scopeSidebar, ">", actSidebarWiden, ""},
+
+	{scopeNormal, "enter", actFollowLink, ""},
+	{scopeNormal, "ctrl+o", actJumpBack, ""},
+	{scopeNormal, "tab", actJumpForward, ""},
+	{scopeNormal, "ctrl+i", actJumpForward, ""},
 }
 
 // exCommands maps ":" commands to actions; the text after the name is the
@@ -87,6 +102,7 @@ var exCommands = map[string]action{
 	"sidebar": actToggleSidebar,
 	"today":   actToday,
 	"daily":   actJumpToDate,
+	"zettel":  actZettel,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -110,6 +126,11 @@ func init() {
 		actDailyPrev:     func(m Model, _ string) (Model, tea.Cmd) { return m.stepDaily(-1) },
 		actDailyNext:     func(m Model, _ string) (Model, tea.Cmd) { return m.stepDaily(1) },
 		actJumpToDate:    func(m Model, arg string) (Model, tea.Cmd) { return m.jumpToDate(arg) },
+		actFollowLink:    func(m Model, _ string) (Model, tea.Cmd) { return m.followOrMove() },
+		actGoToLink:      func(m Model, _ string) (Model, tea.Cmd) { return m.goToLink() },
+		actJumpBack:      func(m Model, _ string) (Model, tea.Cmd) { return m.jumpBack() },
+		actJumpForward:   func(m Model, _ string) (Model, tea.Cmd) { return m.jumpForward() },
+		actZettel:        func(m Model, arg string) (Model, tea.Cmd) { return m.newZettel(arg) },
 	}
 }
 

@@ -1,0 +1,23 @@
+# PROTOTYPE: a theme using only the terminal's 16 ANSI colours, so it follows
+# whatever colour scheme the terminal already has.
+name = "ansi16"
+
+[palette]
+bg       = "0"
+surface  = "8"
+overlay  = "8"
+muted    = "8"
+text     = "7"
+subtext  = "7"
+accent   = "4"
+green    = "2"
+yellow   = "3"
+red      = "1"
+mauve    = "5"
+teal     = "6"
+peach    = "3"
+
+[ui]
+statusline = { fg = "15", bg = "8" }
+status_file = { fg = "15", bg = "8", bold = true }
+status_dirty = { fg = "11", bg = "8", bold = true }

@@ -1,0 +1,21 @@
+# PROTOTYPE: a partial theme. Only the palette and a few slots change;
+# everything else falls back to default.toml.
+name = "light"
+
+[palette]
+bg       = "#eff1f5"
+surface  = "#ccd0da"
+overlay  = "#9ca0b0"
+muted    = "#8c8fa1"
+text     = "#4c4f69"
+subtext  = "#5c5f77"
+accent   = "#1e66f5"
+green    = "#40a02b"
+yellow   = "#df8e1d"
+red      = "#d20f39"
+mauve    = "#8839ef"
+teal     = "#179299"
+peach    = "#fe640b"
+
+[overlay]
+backdrop = { fg = "surface" }

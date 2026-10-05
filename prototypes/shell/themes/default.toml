@@ -1,0 +1,82 @@
+# PROTOTYPE theme file. Every slot pholio draws with is listed here.
+# A style is a table of: fg, bg, bold, italic, underline, strike, faint, reverse.
+# fg/bg take a [palette] name, a "#rrggbb" hex, or an ANSI number ("8").
+# Other theme files only need the slots they change; missing ones fall back to this file.
+
+name = "default"
+
+[palette]
+bg       = "#1e1e2e"
+surface  = "#313244"
+overlay  = "#45475a"
+muted    = "#6c7086"
+text     = "#cdd6f4"
+subtext  = "#a6adc8"
+accent   = "#89b4fa"
+green    = "#a6e3a1"
+yellow   = "#f9e2af"
+red      = "#f38ba8"
+mauve    = "#cba6f7"
+teal     = "#94e2d5"
+peach    = "#fab387"
+
+# ---- app chrome ----
+[ui]
+base             = { fg = "text" }
+pane_border      = { fg = "surface" }
+pane_border_focus = { fg = "accent" }
+statusline       = { fg = "subtext", bg = "surface" }
+status_file      = { fg = "text", bg = "surface", bold = true }
+status_dirty     = { fg = "peach", bg = "surface", bold = true }
+mode_normal      = { fg = "bg", bg = "accent", bold = true }
+mode_insert      = { fg = "bg", bg = "green", bold = true }
+mode_visual      = { fg = "bg", bg = "mauve", bold = true }
+mode_command     = { fg = "bg", bg = "yellow", bold = true }
+message          = { fg = "subtext" }
+error            = { fg = "red", bold = true }
+
+[sidebar]
+header           = { fg = "accent", bold = true }
+dir              = { fg = "accent" }
+file             = { fg = "text" }
+other_file       = { fg = "muted" }
+hidden           = { fg = "muted", italic = true }
+selected         = { fg = "bg", bg = "accent" }
+selected_blur    = { bg = "surface" }
+open_file        = { fg = "green", bold = true }
+
+[overlay]
+backdrop         = { fg = "overlay", faint = true }
+box              = { fg = "text" }
+border           = { fg = "mauve" }
+title            = { fg = "mauve", bold = true }
+selected         = { fg = "bg", bg = "mauve" }
+input            = { fg = "text", bold = true }
+placeholder      = { fg = "muted", italic = true }
+hint             = { fg = "muted" }
+group            = { fg = "peach", bold = true }
+
+# ---- editor text ----
+[markdown]
+heading          = { fg = "accent", bold = true }
+bold             = { bold = true }
+italic           = { italic = true }
+code             = { fg = "yellow" }
+link             = { fg = "teal", underline = true }
+bullet           = { fg = "mauve" }
+quote            = { fg = "subtext", italic = true }
+task_box         = { fg = "mauve", bold = true }
+task_done        = { fg = "muted", strike = true }
+tag              = { fg = "mauve" }
+meta             = { fg = "green" }
+search           = { fg = "bg", bg = "yellow" }
+visual           = { reverse = true }
+
+# ---- Task List ----
+[tasks]
+overdue          = { fg = "red", bold = true }
+today            = { fg = "yellow", bold = true }
+upcoming         = { fg = "green" }
+no_date          = { fg = "subtext" }
+pri_high         = { fg = "red" }
+source           = { fg = "muted" }

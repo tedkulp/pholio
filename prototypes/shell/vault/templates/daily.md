@@ -1,0 +1,5 @@
+# {{date}}
+
+## Tasks
+
+## Log

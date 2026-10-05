@@ -78,6 +78,9 @@ type Engine struct {
 
 	undo, redo []change
 	pending    *change // edits of the command in progress
+	changes    uint64  // the last change id handed out
+	baseID     uint64  // the id of the text as loaded, before any change
+	saved      uint64  // the id of the text last saved
 	inserted   bool    // the pending change included an insert session
 	fixing     bool    // the Fixup hook is running
 }

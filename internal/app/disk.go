@@ -166,7 +166,7 @@ func (m Model) answerOverwrite(k tea.KeyPressMsg) Model {
 		m.message, m.problem = "E212: Can't open file for writing: "+err.Error(), true
 		return m
 	}
-	e.Dirty = false
+	e.MarkSaved()
 	e.Msg = fmt.Sprintf("%q %dL written", m.path(), e.Buf.LineCount())
 	return m
 }

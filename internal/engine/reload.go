@@ -16,8 +16,8 @@ func (e *Engine) Reload(text string) {
 		e.Buf = buf
 		e.SetCursor(e.Cur)
 		c.after = e.Cur
-		e.undo, e.redo = append(e.undo, c), nil
+		e.push(c)
 	}
 	e.SetCursor(e.Cur)
-	e.Dirty = false
+	e.MarkSaved()
 }

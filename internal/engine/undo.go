@@ -12,6 +12,29 @@ type edit struct {
 type change struct {
 	edits         []edit
 	before, after Pos
+	id            uint64 // unique within the engine; 0 is "no change"
+}
+
+// head is the id of the newest change on the undo stack: the identity of
+// the buffer's current text. 0 is the text as loaded.
+func (e *Engine) head() uint64 {
+	if len(e.undo) == 0 {
+		return e.baseID
+	}
+	return e.undo[len(e.undo)-1].id
+}
+
+// MarkSaved records that the buffer's current text is what is on disk:
+// the buffer is clean, and undo or redo back to this text leaves it clean.
+func (e *Engine) MarkSaved() {
+	e.saved, e.Dirty = e.head(), false
+}
+
+// push puts c on the undo stack under a fresh id and clears redo.
+func (e *Engine) push(c change) {
+	e.changes++
+	c.id = e.changes
+	e.undo, e.redo = append(e.undo, c), nil
 }
 
 func (e *Engine) record(ed edit) {
@@ -28,8 +51,7 @@ func (e *Engine) commit() {
 		return
 	}
 	e.pending.after = e.Cur
-	e.undo = append(e.undo, *e.pending)
-	e.redo = nil
+	e.push(*e.pending)
 	e.pending = nil
 	e.inserted = false
 }
@@ -70,7 +92,7 @@ func (e *Engine) undoStep() {
 		}
 	}
 	e.redo = append(e.redo, c)
-	e.Cur, e.Dirty = c.before, true
+	e.Cur, e.Dirty = c.before, e.head() != e.saved
 }
 
 func (e *Engine) redoStep() {
@@ -89,5 +111,5 @@ func (e *Engine) redoStep() {
 		}
 	}
 	e.undo = append(e.undo, c)
-	e.Cur, e.Dirty = c.after, true
+	e.Cur, e.Dirty = c.after, e.head() != e.saved
 }

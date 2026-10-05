@@ -184,7 +184,7 @@ func (m Model) save() (Model, bool) {
 		m.file.refused = false
 		return m.say("saving "+m.rel(m.path())+": "+err.Error()+" (:e! to reload, :w to overwrite)", true), false
 	}
-	e.Dirty = false
+	e.MarkSaved()
 	return m, true
 }
 

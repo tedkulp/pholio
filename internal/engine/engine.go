@@ -51,6 +51,9 @@ type Engine struct {
 	// ctrl+d/u/f/b know how far to scroll.
 	PageLines int
 
+	// Fixup, when set, runs as each change completes (see FixupFunc).
+	Fixup FixupFunc
+
 	fs     FS
 	exCmds map[string]ExFunc
 
@@ -75,6 +78,8 @@ type Engine struct {
 
 	undo, redo []change
 	pending    *change // edits of the command in progress
+	inserted   bool    // the pending change included an insert session
+	fixing     bool    // the Fixup hook is running
 }
 
 // New returns an Engine in normal mode with the cursor at the start of text.
@@ -165,6 +170,7 @@ func (e *Engine) settle() {
 	}
 	e.keptWant = false
 	if len(e.keys) == 0 {
+		e.fixup()
 		e.commit()
 	}
 }

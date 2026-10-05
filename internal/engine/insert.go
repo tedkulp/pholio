@@ -12,6 +12,7 @@ var listRe = regexp.MustCompile(`^(\s*)([-*+]|\d+[.)])(\s+)(\[[ xX/-]\](?:\s+|$)
 
 func (e *Engine) startInsert() {
 	e.Mode = Insert
+	e.inserted = true
 	e.Cur.Col = min(e.Cur.Col, len(e.line(e.Cur.Line)))
 }
 

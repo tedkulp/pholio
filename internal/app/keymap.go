@@ -31,6 +31,10 @@ const (
 	actGoToLink      action = "go-to-link"
 	actJumpBack      action = "jump-back"
 	actJumpForward   action = "jump-forward"
+	actBacklinks     action = "backlinks"
+	actGrep          action = "grep"
+	actZettel        action = "zettel"
+	actFindNote      action = "find-note"
 )
 
 // scope is where a binding fires.
@@ -79,6 +83,10 @@ var bindings = []binding{
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},
 	{scopeLeader, "D", actJumpToDate, "date"},
+	{scopeLeader, "b", actBacklinks, "backlinks"},
+	{scopeLeader, "/", actGrep, "search"},
+	{scopeLeader, "z", actZettel, "zettel"},
+	{scopeLeader, "f", actFindNote, "find"},
 
 	{scopeSequence, "[d", actDailyPrev, ""},
 	{scopeSequence, "]d", actDailyNext, ""},
@@ -97,9 +105,13 @@ var bindings = []binding{
 // exCommands maps ":" commands to actions; the text after the name is the
 // action's argument. The engine's built-ins (:w, :q, :e) win over these.
 var exCommands = map[string]action{
-	"sidebar": actToggleSidebar,
-	"today":   actToday,
-	"daily":   actJumpToDate,
+	"sidebar":   actToggleSidebar,
+	"today":     actToday,
+	"daily":     actJumpToDate,
+	"backlinks": actBacklinks,
+	"grep":      actGrep,
+	"zettel":    actZettel,
+	"find":      actFindNote,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -127,6 +139,10 @@ func init() {
 		actGoToLink:      func(m Model, _ string) (Model, tea.Cmd) { return m.goToLink() },
 		actJumpBack:      func(m Model, _ string) (Model, tea.Cmd) { return m.jumpBack() },
 		actJumpForward:   func(m Model, _ string) (Model, tea.Cmd) { return m.jumpForward() },
+		actBacklinks:     func(m Model, _ string) (Model, tea.Cmd) { return m.showBacklinks() },
+		actGrep:          func(m Model, arg string) (Model, tea.Cmd) { return m.showGrep(arg) },
+		actZettel:        func(m Model, arg string) (Model, tea.Cmd) { return m.newZettel(arg) },
+		actFindNote:      func(m Model, arg string) (Model, tea.Cmd) { return m.findNote(arg) },
 	}
 }
 

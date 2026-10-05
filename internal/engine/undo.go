@@ -31,6 +31,7 @@ func (e *Engine) commit() {
 	e.undo = append(e.undo, *e.pending)
 	e.redo = nil
 	e.pending = nil
+	e.inserted = false
 }
 
 // ins inserts s at p, recording it for undo, and returns the end of s.

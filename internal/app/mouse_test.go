@@ -133,6 +133,19 @@ func TestClickDropsAHalfTypedCommand(t *testing.T) {
 	}
 }
 
+func TestClickClosesTheCompletionPopup(t *testing.T) {
+	m, _ := linked(t, "index.md")
+	m = typeKeys(newLine(m), "see [[bet")
+	if popup(m) == nil {
+		t.Fatal("the popup did not open")
+	}
+
+	m = send(m, click(edX+1, 0))
+	if got := popup(m); got != nil {
+		t.Errorf("popup still open after a click: %q", got)
+	}
+}
+
 func TestClickPastTheTextLandsOnItsEnd(t *testing.T) {
 	m := shell(t, shellVault(), "/vault/a.md")
 

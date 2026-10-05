@@ -89,6 +89,7 @@ func (m Model) wheel(e tea.Mouse) Model {
 		m.side = m.side.Scroll(n)
 	case regionEditor:
 		m.ed = m.ed.Scroll(n)
+		m = m.syncCompletion(false) // closes when the cursor was pulled away
 	}
 	return m
 }
@@ -103,7 +104,7 @@ func (m Model) click(e tea.Mouse) (Model, tea.Cmd) {
 	if r == regionNone {
 		return m, nil
 	}
-	m.leader, m.pending = false, nil
+	m.leader, m.pending, m.complete = false, nil, nil
 	m.message, m.problem = "", false
 	switch r {
 	case regionSidebar:
@@ -152,12 +153,14 @@ func (m Model) overlayMouse(msg tea.MouseMsg) (Model, tea.Cmd) {
 		if hit != layerPalette {
 			return m, nil
 		}
+		o := *m.overlay
 		switch e.Button {
 		case tea.MouseWheelUp:
-			m.overlay = &overlay{p: p.Scroll(-1), on: m.overlay.on}
+			o.p = p.Scroll(-1)
 		case tea.MouseWheelDown:
-			m.overlay = &overlay{p: p.Scroll(1), on: m.overlay.on}
+			o.p = p.Scroll(1)
 		}
+		m.overlay = &o
 	}
 	return m, nil
 }

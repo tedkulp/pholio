@@ -306,6 +306,12 @@ func movedPath(p, from, to string) (string, bool) {
 	return "", false
 }
 
+// within reports whether p is the file or folder at dir or inside it.
+func within(p, dir string) bool {
+	_, ok := movedPath(p, dir, dir)
+	return ok
+}
+
 // moved follows a rename in the jumplist's entries.
 func (j jumplist) moved(from, to string) jumplist {
 	list := slices.Clone(j.list)
@@ -337,7 +343,7 @@ func (m Model) rewrite(edits []relink.Edit, links int) Model {
 		}
 		if p == m.path() {
 			m.ed.Engine().Reload(ed.Contents)
-			m.fed = m.ed.Engine().Buf.Version()
+			m.indexedVer = m.ed.Engine().Buf.Version()
 		}
 	}
 	if len(failed) > 0 {
@@ -417,13 +423,13 @@ func (m Model) trash(p string, dir bool) Model {
 		ix.Remove(p)
 		if dir {
 			for _, n := range ix.Notes() {
-				if _, ok := movedPath(m.abs(n.Path), p, p); ok {
+				if within(m.abs(n.Path), p) {
 					ix.Remove(m.abs(n.Path))
 				}
 			}
 		}
 	}
-	if _, ok := movedPath(m.path(), p, p); ok {
+	if within(m.path(), p) {
 		f := m.focus
 		m, _ = m.switchTo("")
 		m.focus = f

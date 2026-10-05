@@ -56,7 +56,7 @@ func (m Model) indexScanned(msg indexReadyMsg) Model {
 // editedIndex schedules feeding the open buffer to the index when an edit
 // changed it. Each edit restarts the wait.
 func (m Model) editedIndex() (Model, tea.Cmd) {
-	if m.deps.Index == nil || m.ed.Engine().Buf.Version() == m.fed {
+	if m.deps.Index == nil || m.ed.Engine().Buf.Version() == m.indexedVer {
 		return m, nil
 	}
 	m.syncGen++
@@ -72,7 +72,7 @@ func (m Model) syncIndex() Model {
 	}
 	e := m.ed.Engine()
 	ix.Update(m.path(), []byte(e.Buf.String()))
-	m.fed = e.Buf.Version()
+	m.indexedVer = e.Buf.Version()
 	m.syncGen++ // a pending tick has nothing left to do
 	return m
 }

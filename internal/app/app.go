@@ -64,10 +64,10 @@ type Model struct {
 	overlay *overlay         // an open palette
 	exq     *exQueue         // ex commands the engine handed to the app
 
-	session *config.Session // nil until WithSession
-	looks   looks
-	message string // shown on the message line until the next key
-	problem bool   // the message reports a problem
+	session    *config.Session // nil until WithSession
+	appearance appearance      // the theme and how it was chosen (theme.go)
+	message    string          // shown on the message line until the next key
+	problem    bool            // the message reports a problem
 
 	confirming bool // the overwrite y/N prompt is up (disk.go)
 	// quitAfterWrite: the overwrite prompt is up for a :wq or :x, which
@@ -77,9 +77,9 @@ type Model struct {
 	noMouse bool // mouse = false: no mouse mode is requested (mouse.go)
 	drag    bool // the sidebar border is being dragged (mouse.go)
 
-	jumps   jumplist // the session's Note history (jumplist.go)
-	fed     uint64   // the buffer version last fed to the index (index.go)
-	syncGen int      // the pending index feed; bumped to cancel it
+	jumps      jumplist // the session's Note history (jumplist.go)
+	indexedVer uint64   // the buffer version last fed to the index (index.go)
+	syncGen    int      // the pending index feed; bumped to cancel it
 
 	recent   []string    // Notes opened this session, newest first (find.go)
 	complete *completion // the [[ popup (complete.go)
@@ -95,7 +95,7 @@ func New(deps Deps, path string) (Model, error) {
 	m := Model{
 		deps: deps, vault: filepath.Dir(path), wrap: true, conceal: true,
 		sideOn: true, sideW: config.DefaultState().SidebarWidth,
-		exq: &exQueue{}, looks: defaultLooks(),
+		exq: &exQueue{}, appearance: defaultAppearance(),
 	}
 	file, e, err := m.openEngine(path)
 	if err != nil {
@@ -103,7 +103,7 @@ func New(deps Deps, path string) (Model, error) {
 	}
 	m.file = file
 	m.ed = m.newEditor(e)
-	m.fed = e.Buf.Version()
+	m.indexedVer = e.Buf.Version()
 	m.recent = remember(m.recent, path)
 	m.side = sidebar.New(deps.FS, m.vault).Reveal(path)
 	return m.relayout(), nil
@@ -347,7 +347,7 @@ func (m Model) View() tea.View {
 	if m.w <= 0 || m.h <= 0 {
 		return v
 	}
-	th := m.looks.theme
+	th := m.appearance.theme
 	rows := []string{m.statusLine(), m.messageLine()}
 	var cursor *tea.Cursor
 	if m.h > 2 {
@@ -377,7 +377,7 @@ func (m Model) View() tea.View {
 
 // body is the pane area: sidebar and editor side by side.
 func (m Model) body() (string, *tea.Cursor) {
-	th := m.looks.theme
+	th := m.appearance.theme
 	text, cursor := m.ed.SetTags(m.file.tags()...).View(th)
 	sw := m.sidebarWidth()
 	if m.sidebarFocused() {
@@ -401,7 +401,7 @@ func (m Model) body() (string, *tea.Cursor) {
 // statusLine is the editor's status line, or the leader hint while spc is
 // pending.
 func (m Model) statusLine() string {
-	th := m.looks.theme
+	th := m.appearance.theme
 	if !m.leader {
 		return m.ed.SetTags(m.file.tags()...).StatusLine(th, m.w)
 	}
@@ -413,7 +413,7 @@ func (m Model) statusLine() string {
 // messageLine shows the prompt, the app's message or the engine's, in that
 // order. The cmdline, when open, is drawn over it in View.
 func (m Model) messageLine() string {
-	th := m.looks.theme
+	th := m.appearance.theme
 	e := m.ed.Engine()
 	msg, slot := e.Msg, theme.UIMessage
 	switch {

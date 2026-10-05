@@ -142,7 +142,7 @@ func (m Model) switchTo(path string) (Model, bool) {
 	}
 	m.file, m.confirming, m.quitAfterWrite = file, false, false
 	m.ed = m.newEditor(e)
-	m.fed = e.Buf.Version()
+	m.indexedVer = e.Buf.Version()
 	m.recent = remember(m.recent, path)
 	m.side = m.side.Reveal(path)
 	m.focus = focusEditor

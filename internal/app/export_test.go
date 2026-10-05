@@ -34,3 +34,25 @@ func (m Model) SidebarSelected() string {
 
 // Cursor is the editor's cursor.
 func (m Model) Cursor() engine.Pos { return m.ed.Engine().Cur }
+
+// PaletteSelected is the open palette's selected row's text, or "".
+func (m Model) PaletteSelected() string {
+	if m.overlay == nil {
+		return ""
+	}
+	it, _, _ := m.overlay.p.Selected()
+	return it.Text
+}
+
+// PaletteRows are the open palette's visible rows as "group | text |
+// detail", or nil when no palette is open.
+func (m Model) PaletteRows() []string {
+	if m.overlay == nil {
+		return nil
+	}
+	var out []string
+	for _, it := range m.overlay.p.Visible() {
+		out = append(out, it.Group+" | "+it.Text+" | "+it.Detail)
+	}
+	return out
+}

@@ -41,6 +41,7 @@ const (
 	actTreeAdd       action = "tree-add"
 	actTreeRename    action = "tree-rename"
 	actTreeDelete    action = "tree-delete"
+	actTasks         action = "tasks"
 )
 
 // scope is where a binding fires.
@@ -94,6 +95,7 @@ var bindings = []binding{
 	{scopeLeader, "z", actZettel, "zettel"},
 	{scopeLeader, "f", actFindNote, "find"},
 	{scopeLeader, "n", actNewNote, "new"},
+	{scopeLeader, "t", actTasks, "tasks"},
 
 	{scopeSequence, "[d", actDailyPrev, ""},
 	{scopeSequence, "]d", actDailyNext, ""},
@@ -125,6 +127,7 @@ var exCommands = map[string]action{
 	"new":       actNewNote,
 	"rename":    actRenameNote,
 	"delete":    actDeleteNote,
+	"tasks":     actTasks,
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -162,6 +165,7 @@ func init() {
 		actTreeAdd:       func(m Model, _ string) (Model, tea.Cmd) { return m.treeAdd() },
 		actTreeRename:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeRename() },
 		actTreeDelete:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeDelete() },
+		actTasks:         func(m Model, _ string) (Model, tea.Cmd) { return m.showTaskList(taskView{}) },
 	}
 }
 

@@ -18,6 +18,10 @@ _Avoid_: page, document, entry
 The Note for one calendar day, created from the daily Template the first time that day is opened.
 _Avoid_: journal, diary entry
 
+**Today**:
+The current day as pholio counts it. It starts at the configured day-start hour, not necessarily at midnight, so 1am can still be yesterday. Every "today" (the Daily Note, Overdue, `done:` stamps) means this day.
+_Avoid_: current date, now
+
 **Zettel**:
 A Note on a single idea, created on the spot from inside another Note. Its name carries a timestamp ID so it stays unique and stable when its title changes.
 _Avoid_: card, atomic note, permanent note

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/app"
+	"github.com/tedkulp/pholio/internal/config"
 	"github.com/tedkulp/pholio/internal/seam"
 )
 
@@ -20,17 +21,38 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: pholio <file>")
+	if len(args) > 1 {
+		return fmt.Errorf("usage: pholio [folder or file]")
 	}
-	path, err := filepath.Abs(args[0])
+	var arg string
+	if len(args) == 1 {
+		abs, err := filepath.Abs(args[0])
+		if err != nil {
+			return err
+		}
+		arg = abs
+	}
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	m, err := app.New(app.Deps{FS: seam.OSFS{}, Clock: seam.SystemClock{}}, path)
+	fsys, clock := seam.OSFS{}, seam.SystemClock{}
+	s, err := config.Startup(fsys, config.DirsFromEnv(os.Getenv, home), home, arg)
 	if err != nil {
 		return err
 	}
-	_, err = tea.NewProgram(m).Run()
+
+	path := s.Target.File
+	if path == "" {
+		// Placeholder until the Daily Notes ticket: open today's Daily Note
+		// path (Today shifted by day_starts_at) without a template.
+		today := clock.Now().Add(-s.Config.DayStartsAt).Format("2006-01-02")
+		path = filepath.Join(s.Target.Vault, s.Config.DailyFolder, today+".md")
+	}
+	m, err := app.New(app.Deps{FS: fsys, Clock: clock}, path)
+	if err != nil {
+		return err
+	}
+	_, err = tea.NewProgram(m.WithSession(s)).Run()
 	return err
 }

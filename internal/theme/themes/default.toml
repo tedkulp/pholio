@@ -33,6 +33,7 @@ mode_visual      = { fg = "bg", bg = "mauve", bold = true }
 mode_command     = { fg = "bg", bg = "yellow", bold = true }
 message          = { fg = "subtext" }
 error            = { fg = "red", bold = true }
+end_of_buffer    = { fg = "muted" }
 
 [sidebar]
 header           = { fg = "accent", bold = true }

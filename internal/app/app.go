@@ -29,6 +29,8 @@ type Deps struct {
 	// Index, if set, is the Vault index. Init scans it in the background
 	// and the open buffer's edits are fed to it.
 	Index *index.Index
+	// Trash takes deleted Notes and folders (d in the tree, :delete).
+	Trash seam.Trash
 }
 
 // focus is the pane that receives keys.

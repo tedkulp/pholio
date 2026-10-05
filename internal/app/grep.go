@@ -267,7 +267,7 @@ func grepShow(p palette.Model, hits []grepHit, more bool) palette.Model {
 	items := make([]palette.Item, len(hits))
 	for i, h := range hits {
 		text, marks := h.snippet()
-		items[i] = palette.Item{Text: text, Marks: marks, Detail: fmt.Sprintf("%s:%d", h.path, h.line+1), Value: h}
+		items[i] = palette.Item{Text: text, Marks: marks, Detail: lineRef(h.path, h.line), Value: h}
 	}
 	count := fmt.Sprintf("%d matches", len(hits))
 	if more {

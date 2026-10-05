@@ -154,7 +154,7 @@ func (m Model) taskRows(v taskView) []palette.Item {
 			}
 			items = append(items, palette.Item{
 				Text:       fmt.Sprintf("[%c] %s", t.Mark, t.Text),
-				Detail:     fmt.Sprintf("%s:%d", t.Path, t.Line+1),
+				Detail:     lineRef(t.Path, t.Line),
 				DetailSlot: theme.TasksSource,
 				Group:      fmt.Sprintf("%s (%d)", g.name, len(ts)),
 				Slot:       slot,

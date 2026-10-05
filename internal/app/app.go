@@ -168,14 +168,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.side = m.side.Refresh()
 		m = m.checkDisk()
-	case tea.KeyPressMsg:
-		m, cmd = m.key(msg)
-		var sync tea.Cmd
-		m, sync = m.editedIndex()
-		cmd = tea.Batch(cmd, sync)
-	case tea.PasteMsg:
-		m, cmd = m.paste(msg)
-		var sync tea.Cmd
+	case tea.KeyPressMsg, tea.PasteMsg:
+		if k, ok := msg.(tea.KeyPressMsg); ok {
+			m, cmd = m.key(k)
+		} else {
+			m, cmd = m.paste(msg.(tea.PasteMsg))
+		}
+		var sync tea.Cmd // either may have edited the buffer
 		m, sync = m.editedIndex()
 		cmd = tea.Batch(cmd, sync)
 	case tea.MouseMsg:
@@ -259,19 +258,17 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 // free reports whether global keys (the leader, ctrl+h/l) may fire: from
 // the sidebar, or in normal mode with nothing pending.
-func (m Model) free() bool {
-	if m.sidebarFocused() {
-		return true
-	}
-	e := m.ed.Engine()
-	return e.Mode == engine.Normal && e.PendingKeys() == ""
-}
+func (m Model) free() bool { return m.sidebarFocused() || m.editorIdle() }
 
 // normalIdle reports whether the editor has focus in normal mode with
 // nothing pending: where scopeNormal keys fire.
-func (m Model) normalIdle() bool {
+func (m Model) normalIdle() bool { return !m.sidebarFocused() && m.editorIdle() }
+
+// editorIdle reports whether the engine is in normal mode with nothing
+// pending.
+func (m Model) editorIdle() bool {
 	e := m.ed.Engine()
-	return !m.sidebarFocused() && e.Mode == engine.Normal && e.PendingKeys() == ""
+	return e.Mode == engine.Normal && e.PendingKeys() == ""
 }
 
 func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {

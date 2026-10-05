@@ -28,7 +28,7 @@ func (m Model) WithSession(s config.Session) Model {
 	m.session = &s
 	problems := m.loadTheme(s.Config.Theme)
 	m.looks.configured = s.Config.Theme
-	m.ed = m.ed.SetWrap(s.Config.Wrap)
+	m.ed = m.ed.SetWrap(s.Config.Wrap).SetConceal(s.Config.Conceal)
 	m.message = joinMessages(s.Message, theme.Message(problems))
 	m.problem = m.message != ""
 	return m
@@ -75,7 +75,7 @@ func (m Model) reload() Model {
 		cfg, msg := s.Reload(m.deps.FS)
 		s.Config, configMsg = cfg, msg
 		m.session = &s
-		m.ed = m.ed.SetWrap(cfg.Wrap)
+		m.ed = m.ed.SetWrap(cfg.Wrap).SetConceal(cfg.Conceal)
 		if cfg.Theme != m.looks.configured {
 			name, m.looks.configured = cfg.Theme, cfg.Theme
 		}

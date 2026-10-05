@@ -11,6 +11,7 @@ type glyph struct {
 	start int // byte offset in the line
 	text  string
 	w     int // cells
+	kind  kind
 }
 
 // layout is one buffer line broken into screen rows.
@@ -20,12 +21,16 @@ type layout [][]glyph
 // the whole line is one row. With wrap on, a row breaks after its last
 // blank, or mid-word when the word alone fills the row. When the cursor
 // sits just past a full last row (insert mode at end of line), an empty
-// row is added for it.
-func layoutLine(line string, width int, wrap, cursorAtEnd bool) layout {
+// row is added for it. ks gives each byte's markdown kind, and glyphs
+// starting on a byte marked in hidden are left out (conceal).
+func layoutLine(line string, ks []kind, hidden []bool, width int, wrap, cursorAtEnd bool) layout {
 	var gs []glyph
 	it := graphemes.FromString(line)
 	for it.Next() {
-		gs = append(gs, glyph{start: it.Start(), text: it.Value()})
+		if hidden != nil && hidden[it.Start()] {
+			continue
+		}
+		gs = append(gs, glyph{start: it.Start(), text: it.Value(), kind: ks[it.Start()]})
 	}
 	if !wrap {
 		x := 0

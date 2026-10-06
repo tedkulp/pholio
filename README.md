@@ -142,3 +142,7 @@ just golden   # regenerate View() snapshot files
 ```
 
 The v1 behaviour is specified in [issue #17](https://github.com/tedkulp/pholio/issues/17), and domain terms (Note, Vault, Link, Task…) are defined in [`CONTEXT.md`](CONTEXT.md).
+
+## License
+
+[MIT](LICENSE)

@@ -118,7 +118,7 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `theme` | `"default"` | `default`, `light`, `ansi16`, or a user theme |
 | `mouse` | `true` | wheel scroll, clicks, sidebar drag-resize |
 | `wrap` | `true` | soft word-wrap; `false` scrolls sideways |
-| `conceal` | `true` | hide `[[ ]]`, `**`, backticks and link URLs off the cursor line |
+| `conceal` | `true` | hide `[[ ]]`, `**`, `~~`, backticks and link URLs off the cursor line |
 | `open_daily_on_startup` | `true` | |
 
 **Vault config**, `<vault>/.pholio/config.toml` (these keys can also go in the user config; the Vault file wins):

@@ -52,6 +52,7 @@ const (
 	MarkdownMarker   Slot = "markdown.marker"
 	MarkdownBold     Slot = "markdown.bold"
 	MarkdownItalic   Slot = "markdown.italic"
+	MarkdownStrike   Slot = "markdown.strike"
 	MarkdownCode     Slot = "markdown.code"
 	MarkdownLink     Slot = "markdown.link"
 	MarkdownBullet   Slot = "markdown.bullet"

@@ -62,6 +62,7 @@ heading          = { fg = "accent", bold = true }
 marker           = { fg = "muted" }
 bold             = { bold = true }
 italic           = { italic = true }
+strike           = { strike = true }
 code             = { fg = "yellow" }
 link             = { fg = "teal", underline = true }
 bullet           = { fg = "mauve" }

@@ -15,9 +15,10 @@ type kind uint8
 const (
 	kText kind = iota
 	kHeading
-	kMarker // syntax: **, [[ ]], ](url), #, >, fences
+	kMarker // syntax: **, ~~, [[ ]], ](url), #, >, fences
 	kBold
 	kItalic
+	kStrike
 	kCode
 	kLink
 	kBullet
@@ -35,6 +36,7 @@ var kindSlots = [kinds]theme.Slot{
 	kMarker:   theme.MarkdownMarker,
 	kBold:     theme.MarkdownBold,
 	kItalic:   theme.MarkdownItalic,
+	kStrike:   theme.MarkdownStrike,
 	kCode:     theme.MarkdownCode,
 	kLink:     theme.MarkdownLink,
 	kBullet:   theme.MarkdownBullet,
@@ -50,6 +52,7 @@ var (
 	reWiki   = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
 	reMdLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 	reBold   = regexp.MustCompile(`\*\*([^*]+)\*\*`)
+	reStrike = regexp.MustCompile(`~~([^~]+)~~`)
 	reItalic = regexp.MustCompile(`(?:^|[^*\w])([*_])([^*_\s][^*_]*)([*_])`)
 	reTag    = regexp.MustCompile(`(?:^|\s)(#[\p{L}\d_/-]+)`)
 	reMeta   = regexp.MustCompile(`(?:^|\s)([a-z]+:[^\s:]+)`)
@@ -155,6 +158,7 @@ func highlight(l string, inFence bool) (ks []kind, hidden []bool) {
 	}
 	wrapped(reWiki, kLink)
 	wrapped(reMdLink, kLink)
+	wrapped(reStrike, kStrike) // before bold, so bold inside it wins
 	wrapped(reBold, kBold)
 	for _, m := range reItalic.FindAllStringSubmatchIndex(l, -1) {
 		if free(m[2], m[7]) && l[m[2]] == l[m[6]] {

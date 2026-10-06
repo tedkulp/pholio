@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-06
+
 ### Added
 - `pholio init [folder]` creates a new Vault: its Daily Note and Zettel folders, a starter daily Template and a commented `.pholio/config.toml`, and sets `vault` in the user config if it is unset.
 - `~~text~~` is drawn struck through, in the new `markdown.strike` theme style, and `conceal` hides its `~~` off the cursor line.

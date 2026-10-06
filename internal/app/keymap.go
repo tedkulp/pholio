@@ -42,6 +42,7 @@ const (
 	actTreeRename    action = "tree-rename"
 	actTreeDelete    action = "tree-delete"
 	actTasks         action = "tasks"
+	actHelp          action = "help"
 )
 
 // scope is where a binding fires.
@@ -63,12 +64,14 @@ const (
 	// pair is not bound, both go on as usual.
 	scopeSequence
 	// scopeNormal keys fire in the editor in normal mode with nothing
-	// pending, before the engine sees them. (gd, two keys, is matched in
-	// Model.key.)
+	// pending, before the engine sees them. (gd, two keys, is looked up
+	// in Model.key once the engine holds the g.)
 	scopeNormal
 )
 
-// binding maps a key in a scope to an action. help is the leader hint.
+// binding maps a key in a scope to an action. help describes it in the
+// Leader hint, the which-key popup and the help popup; every binding has
+// one.
 type binding struct {
 	scope  scope
 	key    string // a key name as keyName gives it: " ", "e", "ctrl+h"
@@ -79,13 +82,13 @@ type binding struct {
 // bindings is the action table: action name → key. There is no remapping
 // in v1, so this is the whole keymap above the editor and the tree.
 var bindings = []binding{
-	{scopeApp, "ctrl+q", actQuit, ""},
-	{scopeApp, "f7", actCycleTheme, ""},
-	{scopeApp, "f8", actReload, ""},
+	{scopeApp, "ctrl+q", actQuit, "quit"},
+	{scopeApp, "f7", actCycleTheme, "cycle theme"},
+	{scopeApp, "f8", actReload, "reload config and theme"},
 
-	{scopeGlobal, " ", actLeader, ""},
-	{scopeGlobal, "ctrl+h", actFocusSidebar, ""},
-	{scopeGlobal, "ctrl+l", actFocusEditor, ""},
+	{scopeGlobal, " ", actLeader, "leader key"},
+	{scopeGlobal, "ctrl+h", actFocusSidebar, "focus sidebar"},
+	{scopeGlobal, "ctrl+l", actFocusEditor, "focus editor"},
 
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},
@@ -96,22 +99,25 @@ var bindings = []binding{
 	{scopeLeader, "f", actFindNote, "find"},
 	{scopeLeader, "n", actNewNote, "new"},
 	{scopeLeader, "t", actTasks, "tasks"},
+	{scopeLeader, "?", actHelp, "help"},
 
-	{scopeSequence, "[d", actDailyPrev, ""},
-	{scopeSequence, "]d", actDailyNext, ""},
+	{scopeSequence, "[d", actDailyPrev, "previous Daily Note"},
+	{scopeSequence, "]d", actDailyNext, "next Daily Note"},
 
-	{scopeSidebar, "tab", actFocusEditor, ""},
-	{scopeSidebar, "esc", actFocusEditor, ""},
-	{scopeSidebar, "<", actSidebarNarrow, ""},
-	{scopeSidebar, ">", actSidebarWiden, ""},
-	{scopeSidebar, "a", actTreeAdd, ""},
-	{scopeSidebar, "r", actTreeRename, ""},
-	{scopeSidebar, "d", actTreeDelete, ""},
+	{scopeSidebar, "tab", actFocusEditor, "focus editor"},
+	{scopeSidebar, "esc", actFocusEditor, "focus editor"},
+	{scopeSidebar, "<", actSidebarNarrow, "narrower"},
+	{scopeSidebar, ">", actSidebarWiden, "wider"},
+	{scopeSidebar, "a", actTreeAdd, "add Note or folder"},
+	{scopeSidebar, "r", actTreeRename, "rename"},
+	{scopeSidebar, "d", actTreeDelete, "delete"},
 
-	{scopeNormal, "enter", actFollowLink, ""},
-	{scopeNormal, "ctrl+o", actJumpBack, ""},
-	{scopeNormal, "tab", actJumpForward, ""},
-	{scopeNormal, "ctrl+i", actJumpForward, ""},
+	{scopeNormal, "enter", actFollowLink, "follow Link"},
+	{scopeNormal, "ctrl+o", actJumpBack, "jump back"},
+	{scopeNormal, "tab", actJumpForward, "jump forward"},
+	{scopeNormal, "ctrl+i", actJumpForward, "jump forward"},
+	// gd is two keys: Model.key looks it up once the engine holds the g.
+	{scopeNormal, "gd", actGoToLink, "go to Link"},
 }
 
 // exCommands maps ":" commands to actions; the text after the name is the
@@ -166,6 +172,7 @@ func init() {
 		actTreeRename:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeRename() },
 		actTreeDelete:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeDelete() },
 		actTasks:         func(m Model, _ string) (Model, tea.Cmd) { return m.showTaskList(taskView{}) },
+		actHelp:          func(m Model, _ string) (Model, tea.Cmd) { return m.showHelp(), nil },
 	}
 }
 

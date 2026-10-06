@@ -14,7 +14,7 @@ import (
 // leaderKeys are every Leader key with its help text.
 var leaderKeys = []string{
 	"e → sidebar", "d → today", "D → date", "b → backlinks", "/ → search",
-	"z → zettel", "f → find", "n → new", "t → tasks",
+	"z → zettel", "f → find", "n → new", "t → tasks", "? → help",
 }
 
 func deliver(m app.Model, msg tea.Msg) app.Model {

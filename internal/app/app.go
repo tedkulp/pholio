@@ -256,10 +256,12 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			return m.run(a, "")
 		}
 	}
-	if e := m.ed.Engine(); e.Mode == engine.Normal && e.PendingKeys() == "g" && name == "d" {
-		e.Feed("esc") // drop the pending g
-		m.message, m.problem = "", false
-		return m.run(actGoToLink, "")
+	if e := m.ed.Engine(); e.Mode == engine.Normal && e.PendingKeys() == "g" {
+		if a, ok := lookup(scopeNormal, "g"+name); ok {
+			e.Feed("esc") // drop the pending g
+			m.message, m.problem = "", false
+			return m.run(a, "")
+		}
 	}
 	return maybeComplete(m.editorKey(msg))
 }

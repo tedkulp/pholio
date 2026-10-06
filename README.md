@@ -52,7 +52,7 @@ just build        # writes bin/pholio
 pholio ~/notes
 ```
 
-pholio opens today's Daily Note (`daily/YYYY-MM-DD.md`), creating it if needed. Press `spc` in normal mode to see the leader keys, and `ctrl+q` to quit.
+pholio opens today's Daily Note (`daily/YYYY-MM-DD.md`), creating it if needed. Press `spc` in normal mode and wait a moment to see the leader keys, `spc ?` for every key, and `ctrl+q` to quit.
 
 To skip the path argument, set your Vault once in `~/.config/pholio/config.toml`:
 
@@ -79,6 +79,7 @@ The editor is vim: counts, motions, `d`/`c`/`y`, text objects (including markdow
 | `spc n` | new Note | `:new <name>` |
 | | rename / delete this Note | `:rename <path>`, `:delete` |
 | `spc e` | toggle the sidebar | `:sidebar` |
+| `spc ?` | help: every key, filterable; `enter` runs one | |
 | `enter` / `gd` | follow the Link under the cursor | |
 | `ctrl+o` / `tab` | jump back / forward | |
 | `ctrl+h` / `ctrl+l` | focus sidebar / editor | |

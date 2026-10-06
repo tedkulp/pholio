@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - `daily_subfolder` puts new Daily Notes in date-based folders, such as `daily/2026/10/2026-10-06.md`.
+- Wait a moment after `spc` and a which-key popup lists every Leader key above the status line.
+- `spc ?` opens a filterable help popup with every key. `enter` on a row runs it.
 
 ### Changed
 - A new Zettel's timestamp ID has seconds: `YYYYMMDDHHmmss`. Existing 12-digit Zettels are left as they are.

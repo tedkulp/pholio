@@ -92,9 +92,12 @@ func TestSmokeTypingEditsTheNote(t *testing.T) {
 
 	tm.Type("dwiHello ")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEsc})
+	// The edited line itself is checked on the final model, not the screen:
+	// the renderer may draw an insertion with the terminal's insert mode
+	// (CSI 4 h), which x/vt doesn't emulate, so the screen can show
+	// "HelloWelcome" depending on how frames were batched.
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
-		s := scr.update(out)
-		return strings.Contains(s, "Hello Welcome to the basic") && strings.Contains(s, "NORMAL  README.md [+]")
+		return strings.Contains(scr.update(out), "NORMAL  README.md [+]")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
@@ -102,5 +105,11 @@ func TestSmokeTypingEditsTheNote(t *testing.T) {
 		return strings.Contains(s, "Save changes to README.md before quitting?")
 	})
 	tm.Send(tea.KeyPressMsg{Code: 'n', Text: "n"})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).(app.Model)
+	if !ok {
+		t.Fatal("final model is not an app.Model")
+	}
+	if got := final.Text(); !strings.HasPrefix(got, "Hello Welcome to the basic Vault") {
+		t.Fatalf("buffer starts %q, want the edit applied", strings.SplitN(got, "\n", 2)[0])
+	}
 }

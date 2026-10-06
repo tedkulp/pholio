@@ -47,7 +47,7 @@ _Avoid_: parent, source
 ### Tasks
 
 **Task**:
-One markdown checkbox line (`- [ ]` / `- [x]`) anywhere in the Vault, along with its inline metadata.
+One markdown checkbox line (`- [ ]` / `- [x]`) anywhere in the Vault, along with its inline metadata. An empty checkbox, with nothing but whitespace after it, is not a Task.
 _Avoid_: TODO item, todo, action item
 
 **Task Metadata**:

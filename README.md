@@ -49,6 +49,7 @@ just build        # writes bin/pholio
 ## Quick start
 
 ```sh
+pholio init ~/notes   # optional: folders, a daily Template and a commented .pholio/config.toml
 pholio ~/notes
 ```
 
@@ -61,6 +62,8 @@ vault = "~/notes"
 ```
 
 `pholio <file>` opens a single Note instead.
+
+`pholio init [folder]` (the current folder if none is given) creates whatever is missing of `daily/`, `zettel/`, `templates/daily.md` and `.pholio/config.toml`, never overwriting a file, and sets `vault` in the user config if it isn't set yet. To open a folder named `init`, run `pholio ./init`.
 
 ## Keys
 

@@ -54,15 +54,23 @@ func FindVault(fsys seam.FS, d Dirs, home, arg, configured string) (Target, erro
 		return t, nil
 	}
 	t.Vault = filepath.Dir(arg)
-	for dir := t.Vault; ; dir = filepath.Dir(dir) {
+	if v := markedVault(fsys, t.Vault); v != "" {
+		t.Vault = v
+	}
+	return t, nil
+}
+
+// markedVault is the nearest folder at or above dir holding a Vault marker,
+// or "" if there is none.
+func markedVault(fsys seam.FS, dir string) string {
+	for ; ; dir = filepath.Dir(dir) {
 		for _, m := range vaultMarkers {
 			if isDir(fsys, filepath.Join(dir, m)) {
-				t.Vault = dir
-				return t, nil
+				return dir
 			}
 		}
 		if dir == filepath.Dir(dir) {
-			return t, nil
+			return ""
 		}
 	}
 }

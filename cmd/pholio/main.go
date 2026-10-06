@@ -33,8 +33,11 @@ func run(args []string) error {
 		fmt.Println("pholio", versionString())
 		return nil
 	}
+	if len(args) >= 1 && args[0] == "init" {
+		return runInit(args[1:])
+	}
 	if len(args) > 1 {
-		return fmt.Errorf("usage: pholio [folder or file]")
+		return errUsage
 	}
 	var arg string
 	if len(args) == 1 {
@@ -71,6 +74,33 @@ func run(args []string) error {
 		m = m.WithWatchError(watchErr)
 	}
 	_, err = tea.NewProgram(m).Run()
+	return err
+}
+
+var errUsage = fmt.Errorf("usage: pholio [folder or file], or pholio init [folder]")
+
+// runInit makes a folder (the current one if none is given) a Vault.
+// To open a folder named init, run "pholio ./init".
+func runInit(args []string) error {
+	if len(args) > 1 {
+		return errUsage
+	}
+	dir := "."
+	if len(args) == 1 {
+		dir = args[0]
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	lines, err := config.Init(seam.OSFS{}, config.DirsFromEnv(os.Getenv, home), home, abs)
+	for _, l := range lines {
+		fmt.Println(l)
+	}
 	return err
 }
 

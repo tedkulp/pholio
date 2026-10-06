@@ -1,7 +1,8 @@
 // Package config finds the Vault and loads pholio's two config files: the
 // user config ($XDG_CONFIG_HOME/pholio/config.toml) and the Vault config
 // (<vault>/.pholio/config.toml). It also reads and writes the app-written
-// state file. Config files are only ever read.
+// state file. Config files are only ever read, except that Init (pholio
+// init) creates them.
 //
 // Every key has a default. Unknown keys and bad values are returned as
 // problems, and those keys keep their defaults.

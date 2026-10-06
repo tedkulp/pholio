@@ -4,15 +4,9 @@ A terminal markdown editor for a folder of notes, with a vim-style editor built 
 
 pholio opens a **Vault**, a plain folder of `.md` files, and gives you a file tree, a modal editor, and the tools for a daily-notes workflow: Daily Notes, a Vault-wide Task List, `[[wikilinks]]` with Backlinks, and quick Zettel creation. There's no database. The index is rebuilt in memory on every start, and syntax stays Obsidian-compatible, so the same Vault opens fine in other tools.
 
-```
- notes                       │# 2026-10-05
- ▾ daily                     │
-     2026-10-05              │## Tasks
- ▸ zettel                    │- [ ] Review Project Alpha due:2026-10-07
-   Project Alpha             │- [x] Ship v1 done:2026-10-05
-                             │~
- NORMAL  daily/2026-10-05.md                                          1:1
-```
+![Today's Daily Note, with the sidebar](docs/screenshots/daily-note.png)
+
+![The Task List](docs/screenshots/task-list.png)
 
 ## Install
 
@@ -162,6 +156,7 @@ just test     # go test ./...
 just ci       # vet, race tests and golangci-lint, as CI runs them
 just golden   # regenerate View() snapshot files
 just snapshot # build every release artifact into dist/ without publishing
+just screenshots # regenerate docs/screenshots from the demo Vault (needs tmux)
 ```
 
 Pushing a `v*` tag publishes a release through [GoReleaser](https://goreleaser.com/): archives, deb and rpm packages, and the Homebrew cask in [tedkulp/homebrew-tap](https://github.com/tedkulp/homebrew-tap).

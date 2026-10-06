@@ -53,6 +53,10 @@ release-check:
 snapshot:
     mise exec goreleaser@latest -- goreleaser release --snapshot --clean --skip=publish
 
+# Regenerate the README screenshots in docs/screenshots (needs tmux)
+screenshots:
+    mise exec aqua:charmbracelet/freeze@0.2.2 -- docs/screenshots/shoot.sh
+
 # Remove build output
 clean:
     rm -rf bin dist

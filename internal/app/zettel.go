@@ -16,8 +16,9 @@ import (
 	"github.com/tedkulp/pholio/internal/palette"
 )
 
-// zettelStamp is a Zettel's timestamp ID: YYYYMMDDHHmm.
-const zettelStamp = "200601021504"
+// zettelStamp is a Zettel's timestamp ID: YYYYMMDDHHmmss. Older Zettels
+// have a 12-digit YYYYMMDDHHmm ID, which can never equal a new one.
+const zettelStamp = "20060102150405"
 
 // slug is title lowercased, with each run of characters that are not
 // letters or digits turned into one "-", and "-" trimmed from both ends.
@@ -48,7 +49,7 @@ func zettelName(t time.Time, title string) string {
 }
 
 // zettelRel is the Vault-relative path a Zettel titled title would get now.
-// When another Zettel already uses the minute's timestamp, a minute is
+// When another Zettel already uses the second's timestamp, a second is
 // added until it is unique.
 func (m Model) zettelRel(title string) (string, error) {
 	folder := m.config().ZettelFolder
@@ -64,7 +65,7 @@ func (m Model) zettelRel(title string) (string, error) {
 	}
 	t := m.now()
 	for taken[t.Format(zettelStamp)] {
-		t = t.Add(time.Minute)
+		t = t.Add(time.Second)
 	}
 	return path.Join(folder, zettelName(t, title)), nil
 }

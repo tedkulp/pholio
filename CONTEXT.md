@@ -18,6 +18,10 @@ _Avoid_: page, document, entry
 The Note for one calendar day, created from the daily Template the first time that day is opened.
 _Avoid_: journal, diary entry
 
+**Today**:
+The current day as pholio counts it. It starts at the configured day-start hour, not necessarily at midnight, so 1am can still be yesterday. Every "today" (the Daily Note, Overdue, `done:` stamps) means this day.
+_Avoid_: current date, now
+
 **Zettel**:
 A Note on a single idea, created on the spot from inside another Note. Its name carries a timestamp ID so it stays unique and stable when its title changes.
 _Avoid_: card, atomic note, permanent note
@@ -49,6 +53,10 @@ _Avoid_: TODO item, todo, action item
 **Task Metadata**:
 `key:value` pairs and `#tags` written inline on a Task's line, such as `due:2026-10-10 pri:high #work`.
 _Avoid_: attributes, properties, fields
+
+**Task Status**:
+The state shown in a Task's checkbox: open `[ ]`, in progress `[/]` (still open), done `[x]`, or cancelled `[-]`. A done Task records the day it was finished as `done:YYYY-MM-DD`.
+_Avoid_: state, completed (use "done")
 
 **Task List**:
 The single view that gathers every Task in the Vault.

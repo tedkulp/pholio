@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-06
+
 ### Added
 - A Vault is a plain folder of `.md` files, opened with a file tree sidebar and a vim-style modal editor.
 - Daily Notes, with templates.

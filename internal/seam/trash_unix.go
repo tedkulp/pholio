@@ -12,14 +12,13 @@ import (
 // topTrash finds the trash of the filesystem path is on: $topdir/.Trash-$uid,
 // where topdir is that filesystem's mount point. top is topdir.
 func topTrash(path string) (dir, top string, ok bool) {
-	dev := func(p string) (uint64, bool) {
+	// Device IDs are only compared, so they stay in Stat_t's own field type
+	// (uint64 on Linux, int32 on macOS).
+	stat := func(p string) (syscall.Stat_t, bool) {
 		var st syscall.Stat_t
-		if err := syscall.Lstat(p, &st); err != nil {
-			return 0, false
-		}
-		return uint64(st.Dev), true //nolint:unconvert // Dev is int32 on some platforms
+		return st, syscall.Lstat(p, &st) == nil
 	}
-	d, ok := dev(path)
+	st, ok := stat(path)
 	if !ok {
 		return "", "", false
 	}
@@ -29,7 +28,7 @@ func topTrash(path string) (dir, top string, ok bool) {
 		if up == top {
 			break
 		}
-		if ud, ok := dev(up); !ok || ud != d {
+		if ust, ok := stat(up); !ok || ust.Dev != st.Dev {
 			break
 		}
 		top = up

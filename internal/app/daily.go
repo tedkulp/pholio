@@ -67,7 +67,7 @@ func (m Model) dailyNotes() daily.Notes {
 	if m.session != nil {
 		vault = m.session.Target.Vault
 	}
-	return daily.Notes{FS: m.deps.FS, Vault: vault, Folder: cfg.DailyFolder, Template: cfg.DailyTemplate}
+	return daily.Notes{FS: m.deps.FS, Vault: vault, Folder: cfg.DailyFolder, Template: cfg.DailyTemplate, Subfolder: cfg.DailySubfolder}
 }
 
 // ensureDaily creates day's Daily Note if it is missing and returns its
@@ -110,14 +110,14 @@ func (m Model) stepDaily(dir int) (Model, tea.Cmd) {
 	if dir < 0 {
 		step, word = n.Prev, "earlier"
 	}
-	day, ok, err := step(from)
+	note, ok, err := step(from)
 	switch {
 	case err != nil:
 		return m.say("listing Daily Notes: "+err.Error(), true), nil
 	case !ok:
 		return m.say("no "+word+" Daily Note", false), nil
 	}
-	return m.openNote(n.Path(day))
+	return m.openNote(note.Path)
 }
 
 // openDate (:daily <date>) opens the Daily Note for an ISO or relative

@@ -124,11 +124,14 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `day_starts_at` | `"00:00"` (e.g. `"04:00"` keeps 1am on the previous day) |
 | `daily_folder` | `"daily"` |
 | `daily_template` | `"templates/daily.md"` |
+| `daily_subfolder` | `""` (e.g. `"YYYY/MM"` puts new Daily Notes in `daily/2026/10/2026-10-06.md`) |
 | `zettel_folder` | `"zettel"` |
 | `new_note_folder` | `""` (the Vault root) |
 | `tasks_heading` | `"## Tasks"` (where the Task List's `a` adds Tasks) |
 
 Daily templates can use `{{date}}`, `{{date:FMT}}`, `{{time}}`, `{{time:FMT}}`, `{{title}}`, `{{yesterday}}` and `{{tomorrow}}`, with moment-style formats such as `{{date:dddd, MMMM D}}`.
+
+`daily_subfolder` uses the same moment-style format and sets only the folders; the file name stays `YYYY-MM-DD.md`, so `[[2026-10-06]]` Links keep working. Existing Daily Notes aren't moved, and `[d` / `]d` step through flat and nested Daily Notes together.
 
 Unknown keys and bad values are reported once on the status line, and those keys use their defaults.
 

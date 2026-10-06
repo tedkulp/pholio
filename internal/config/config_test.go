@@ -62,6 +62,7 @@ func TestLoad(t *testing.T) {
 			vault: `day_starts_at = "04:30"
 daily_folder = "journal"
 daily_template = "tpl/day.md"
+daily_subfolder = "YYYY/MM"
 zettel_folder = "z"
 new_note_folder = "inbox"
 tasks_heading = "### Todo"
@@ -69,6 +70,7 @@ tasks_heading = "### Todo"
 			want: func(c *config.Config) {
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
+				c.DailySubfolder = "YYYY/MM"
 			},
 		},
 		{
@@ -114,6 +116,15 @@ tasks_heading = "Tasks"
 				vaultPath + `: day_starts_at: want "HH:MM", got "25:00"`,
 				vaultPath + `: tasks_heading: want a markdown heading like "## Tasks", got "Tasks"`,
 				vaultPath + `: zettel_folder: want a folder inside the Vault, got "../out"`,
+			},
+		},
+		{
+			name:  "daily_subfolder must stay inside the Vault",
+			user:  "daily_subfolder = \"/YYYY\"\n",
+			vault: "daily_subfolder = \"[..]/YYYY\"\n",
+			problems: []string{
+				userPath + `: daily_subfolder: want a folder inside the Vault, got "/YYYY"`,
+				vaultPath + `: daily_subfolder: want a folder inside the Vault, got "[..]/YYYY"`,
 			},
 		},
 		{

@@ -4,6 +4,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `daily_subfolder` puts new Daily Notes in date-based folders, such as `daily/2026/10/2026-10-06.md`.
+
 ### Changed
 - A new Zettel's timestamp ID has seconds: `YYYYMMDDHHmmss`. Existing 12-digit Zettels are left as they are.
 - An empty checkbox, such as `- [ ]` with nothing after it, is no longer a Task and stays out of the Task List.

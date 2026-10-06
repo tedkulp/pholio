@@ -19,19 +19,29 @@ type Notes struct {
 	Vault    string // absolute OS path
 	Folder   string // daily_folder, Vault-relative and slash-separated
 	Template string // daily_template, Vault-relative and slash-separated
+	// Subfolder is daily_subfolder: a dates.Format layout, such as
+	// "YYYY/MM", for the folders under Folder that new Daily Notes go in.
+	// "" puts them directly in Folder.
+	Subfolder string
 }
 
 func (n Notes) dir() string { return filepath.Join(n.Vault, filepath.FromSlash(n.Folder)) }
 
-// Path is where day's Daily Note lives.
+// Path is where day's Daily Note lives, in the configured layout.
 func (n Notes) Path(day time.Time) string {
-	return filepath.Join(n.dir(), day.Format(dates.ISO)+".md")
+	dir := n.dir()
+	if n.Subfolder != "" {
+		dir = filepath.Join(dir, filepath.FromSlash(dates.Format(day, n.Subfolder)))
+	}
+	return filepath.Join(dir, day.Format(dates.ISO)+".md")
 }
 
 // Day reports the day of the Daily Note at path, or false when path is not
-// a Daily Note: a YYYY-MM-DD.md file directly in the daily folder.
+// a Daily Note: a YYYY-MM-DD.md file at any depth under the daily folder,
+// whatever the Subfolder layout.
 func (n Notes) Day(path string) (time.Time, bool) {
-	if filepath.Dir(filepath.Clean(path)) != filepath.Clean(n.dir()) {
+	rel, err := filepath.Rel(n.dir(), filepath.Clean(path))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return time.Time{}, false
 	}
 	return parseName(filepath.Base(path))
@@ -46,51 +56,78 @@ func parseName(name string) (time.Time, bool) {
 	return d, err == nil
 }
 
-// days lists the days that have a Daily Note, oldest first. A missing
-// daily folder has none.
-func (n Notes) days() ([]time.Time, error) {
-	entries, err := n.FS.ReadDir(n.dir())
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
+// Entry is one existing Daily Note: its day and where it lives.
+type Entry struct {
+	Day  time.Time
+	Path string
+}
+
+// days lists the Daily Notes anywhere under the daily folder, oldest
+// first, one per day. When a day has two, the one at Path(day) wins. A
+// missing daily folder has none.
+func (n Notes) days() ([]Entry, error) {
+	found := map[time.Time]string{}
+	if err := n.collect(n.dir(), found); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
 		return nil, err
 	}
-	var days []time.Time
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if d, ok := parseName(e.Name()); ok {
-			days = append(days, d)
-		}
+	days := make([]Entry, 0, len(found))
+	for d, p := range found {
+		days = append(days, Entry{Day: d, Path: p})
 	}
-	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
+	sort.Slice(days, func(i, j int) bool { return days[i].Day.Before(days[j].Day) })
 	return days, nil
 }
 
-// Prev is the nearest day before from that has a Daily Note.
-func (n Notes) Prev(from time.Time) (time.Time, bool, error) {
+// collect adds the Daily Notes in dir and its subfolders to found.
+func (n Notes) collect(dir string, found map[time.Time]string) error {
+	entries, err := n.FS.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		p := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			if err := n.collect(p, found); err != nil {
+				return err
+			}
+			continue
+		}
+		d, ok := parseName(e.Name())
+		if !ok {
+			continue
+		}
+		if _, dup := found[d]; !dup || p == n.Path(d) {
+			found[d] = p
+		}
+	}
+	return nil
+}
+
+// Prev is the nearest Daily Note before from's day.
+func (n Notes) Prev(from time.Time) (Entry, bool, error) {
 	days, err := n.days()
 	key := from.Format(dates.ISO)
 	for i := len(days) - 1; i >= 0; i-- {
-		if days[i].Format(dates.ISO) < key {
+		if days[i].Day.Format(dates.ISO) < key {
 			return days[i], true, nil
 		}
 	}
-	return time.Time{}, false, err
+	return Entry{}, false, err
 }
 
-// Next is the nearest day after from that has a Daily Note.
-func (n Notes) Next(from time.Time) (time.Time, bool, error) {
+// Next is the nearest Daily Note after from's day.
+func (n Notes) Next(from time.Time) (Entry, bool, error) {
 	days, err := n.days()
 	key := from.Format(dates.ISO)
 	for _, d := range days {
-		if d.Format(dates.ISO) > key {
+		if d.Day.Format(dates.ISO) > key {
 			return d, true, nil
 		}
 	}
-	return time.Time{}, false, err
+	return Entry{}, false, err
 }
 
 // Ensure makes sure day's Daily Note exists. A new one is filled from the

@@ -328,3 +328,31 @@ func TestTodayUsesTheConfiguredDayStart(t *testing.T) {
 	m = ex(m, "today")
 	wantOpen(t, m, "daily/2026-10-06.md")
 }
+
+func TestDailySubfolderNestsNewNotesAndMixesWithFlatOnes(t *testing.T) {
+	vault, d := dailyVault(t)
+	f, err := os.OpenFile(config.VaultConfigPath(vault), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.WriteString("daily_subfolder = \"YYYY/MM\"\n")
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := start(t, vault, d, "", time.Date(2026, 10, 6, 10, 0, 0, 0, time.Local))
+
+	wantOpen(t, m, "daily/2026/10/2026-10-06.md")
+	if !strings.HasPrefix(m.Text(), "# Tuesday, October 6th 2026\n") {
+		t.Errorf("text = %q, want the daily Template", m.Text())
+	}
+	m = typeKeys(m, "[d")
+	wantOpen(t, m, "daily/2026-10-02.md")
+	m = typeKeys(m, "]d")
+	wantOpen(t, m, "daily/2026/10/2026-10-06.md")
+	m = typeKeys(m, "]d")
+	wantOpen(t, m, "daily/2026-10-08.md")
+}

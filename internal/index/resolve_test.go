@@ -92,3 +92,12 @@ func TestBacklinksListLinkingNotesWithContext(t *testing.T) {
 func wiki(target string) index.Link { return index.Link{Kind: index.WikiLink, Target: target} }
 
 func md(target string) index.Link { return index.Link{Kind: index.MarkdownLink, Target: target} }
+
+func TestADateLinkReachesANestedDailyNote(t *testing.T) {
+	ix, root := scanned(t, "links")
+	ix.Update(root+"/daily/2026/10/2026-10-06.md", []byte("# Tuesday\n"))
+
+	if got, ok := ix.Resolve("index.md", wiki("2026-10-06")); !ok || got.Path != "daily/2026/10/2026-10-06.md" {
+		t.Errorf("Resolve(2026-10-06) = %+v, %v", got, ok)
+	}
+}

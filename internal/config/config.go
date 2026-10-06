@@ -20,6 +20,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/tedkulp/pholio/internal/dates"
 	"github.com/tedkulp/pholio/internal/seam"
 )
 
@@ -42,7 +43,10 @@ type Config struct {
 	DayStartsAt   time.Duration
 	DailyFolder   string
 	DailyTemplate string
-	ZettelFolder  string
+	// DailySubfolder is a dates.Format layout, such as "YYYY/MM", for the
+	// folders under DailyFolder that Daily Notes go in. "" is none.
+	DailySubfolder string
+	ZettelFolder   string
 	// NewNoteFolder is Vault-relative; "" is the Vault root.
 	NewNoteFolder string
 	TasksHeading  string
@@ -121,6 +125,7 @@ var vaultKeys = map[string]setter{
 	"day_starts_at":   dayStart,
 	"daily_folder":    str(func(c *Config) *string { return &c.DailyFolder }, inVault),
 	"daily_template":  str(func(c *Config) *string { return &c.DailyTemplate }, inVaultFile),
+	"daily_subfolder": str(func(c *Config) *string { return &c.DailySubfolder }, inVaultLayout),
 	"zettel_folder":   str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
 	"new_note_folder": str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
 	"tasks_heading":   str(func(c *Config) *string { return &c.TasksHeading }, heading),
@@ -218,6 +223,15 @@ func inVault(s string) string {
 		return "a folder inside the Vault"
 	}
 	return ""
+}
+
+// inVaultLayout checks a dates.Format folder layout, both as written and
+// as rendered, since [bracketed] text is copied out as is.
+func inVaultLayout(s string) string {
+	if want := inVault(s); want != "" {
+		return want
+	}
+	return inVault(dates.Format(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), s))
 }
 
 func inVaultFile(s string) string {

@@ -1,0 +1,82 @@
+# GoReleaser builds and publishes pholio when a `v*` tag is pushed
+# (.github/workflows/release.yml). Adapted from tedkulp/drops.
+#
+# Linux and darwin only: the watcher and trash code have unix and darwin
+# variants and CI tests exactly those two, so a Windows binary would be one
+# nothing has run.
+#
+# GoReleaser strips the tag's leading v; the `v` in the ldflag puts it back so
+# a release says `pholio v0.1.0`, as `go install ...@v0.1.0` and `just build` do.
+version: 2
+
+builds:
+  - id: pholio
+    binary: pholio
+    main: ./cmd/pholio
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version=v{{.Version}}
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+    formats:
+      - tar.gz
+
+nfpms:
+  - id: pholio
+    package_name: pholio
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: Ted Kulp
+    maintainer: Ted Kulp <ted@tedkulp.com>
+    homepage: https://github.com/tedkulp/pholio
+    description: A terminal markdown editor with Daily Notes, Zettels and a vault-wide Task List
+    license: MIT
+    formats:
+      - deb
+      - rpm
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+homebrew_casks:
+  - repository:
+      owner: tedkulp
+      name: homebrew-tap
+      token: '{{ .Env.HOMEBREW_TOKEN }}'
+    homepage: https://github.com/tedkulp/pholio
+    description: A terminal markdown editor with Daily Notes, Zettels and a vault-wide Task List
+    license: MIT
+    binaries:
+      - pholio
+    ids:
+      - default
+    hooks:
+      post:
+        # The binary is not signed or notarized, so strip the quarantine
+        # attribute Gatekeeper adds to downloaded artifacts.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/pholio"]
+          end

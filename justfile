@@ -6,9 +6,9 @@ lint_version := "2.14.0"
 default:
     @just --list
 
-# Build the pholio binary into ./bin
+# Build the pholio binary into ./bin, stamped with `git describe`
 build:
-    go build -o bin/pholio ./cmd/pholio
+    go build -ldflags "-X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo devel)" -o bin/pholio ./cmd/pholio
 
 # Run pholio, e.g. `just run ~/notes`
 run *args:
@@ -45,6 +45,14 @@ fmt:
 # Everything CI runs: vet, race tests, lint
 ci: vet race lint
 
+# Validate .goreleaser.yaml
+release-check:
+    mise exec goreleaser@latest -- goreleaser check
+
+# Build every release artifact into ./dist without publishing
+snapshot:
+    mise exec goreleaser@latest -- goreleaser release --snapshot --clean --skip=publish
+
 # Remove build output
 clean:
-    rm -rf bin
+    rm -rf bin dist

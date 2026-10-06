@@ -6,6 +6,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime/debug"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -16,6 +17,10 @@ import (
 	"github.com/tedkulp/pholio/internal/watch"
 )
 
+// version is stamped by the release build (.goreleaser.yaml) and `just build`.
+// Left empty, versionString falls back to what the Go toolchain recorded.
+var version string
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "pholio:", err)
@@ -24,6 +29,10 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) == 1 && (args[0] == "--version" || args[0] == "-v") {
+		fmt.Println("pholio", versionString())
+		return nil
+	}
 	if len(args) > 1 {
 		return fmt.Errorf("usage: pholio [folder or file]")
 	}
@@ -77,4 +86,16 @@ func startWatching(fsys seam.FS, root string, ix *index.Index) (*watch.Vault, er
 		err = v.Watch(w)
 	}
 	return v, err
+}
+
+// versionString is the stamped version, else the module version Go recorded
+// (the tag for `go install ...@v0.1.0`, a pseudo-version for a checkout).
+func versionString() string {
+	if version != "" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" {
+		return bi.Main.Version
+	}
+	return "(devel)"
 }

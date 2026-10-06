@@ -16,7 +16,29 @@ pholio opens a **Vault**, a plain folder of `.md` files, and gives you a file tr
 
 ## Install
 
-pholio needs Go 1.27 or newer. It runs on Linux and macOS; Windows is not supported.
+pholio runs on Linux and macOS; Windows is not supported.
+
+**Homebrew** (macOS):
+
+```sh
+brew install --cask tedkulp/tap/pholio
+```
+
+**Debian or RPM**, from the [latest release](https://github.com/tedkulp/pholio/releases/latest):
+
+```sh
+sudo dpkg -i pholio_<version>_linux_amd64.deb     # or
+sudo rpm -i pholio_<version>_linux_amd64.rpm
+```
+
+**An archive**, for anything else (each release also carries `checksums.txt`):
+
+```sh
+tar -xzf pholio_<version>_linux_amd64.tar.gz
+install -m 755 pholio ~/.local/bin/pholio
+```
+
+**With Go** 1.27 or newer:
 
 ```sh
 go install github.com/tedkulp/pholio/cmd/pholio@latest
@@ -139,6 +161,14 @@ just          # list recipes
 just test     # go test ./...
 just ci       # vet, race tests and golangci-lint, as CI runs them
 just golden   # regenerate View() snapshot files
+just snapshot # build every release artifact into dist/ without publishing
+```
+
+Pushing a `v*` tag publishes a release through [GoReleaser](https://goreleaser.com/): archives, deb and rpm packages, and the Homebrew cask in [tedkulp/homebrew-tap](https://github.com/tedkulp/homebrew-tap).
+
+```sh
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
 ```
 
 The v1 behaviour is specified in [issue #17](https://github.com/tedkulp/pholio/issues/17), and domain terms (Note, Vault, Link, Task…) are defined in [`CONTEXT.md`](CONTEXT.md).

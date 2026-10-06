@@ -1,0 +1,38 @@
+# Pushing a `v*` tag publishes a release: linux and darwin archives for amd64
+# and arm64, checksums, deb and rpm packages, and an updated Homebrew cask in
+# tedkulp/homebrew-tap.
+#
+# fetch-depth: 0 gives GoReleaser the tag history for the changelog.
+#
+# The release uses the run's own GITHUB_TOKEN. Only the tap push needs a secret:
+# HOMEBREW_TOKEN, with push access to tedkulp/homebrew-tap. Without it the job
+# fails at its last step, after the GitHub Release is already published.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # create the release and upload its assets
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}

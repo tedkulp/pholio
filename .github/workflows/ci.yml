@@ -28,3 +28,17 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.14.0
+
+  # A broken .goreleaser.yaml would otherwise only show up when a tag is pushed.
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check

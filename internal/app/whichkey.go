@@ -39,8 +39,8 @@ func (m Model) leaderTick(msg leaderTickMsg) Model {
 // whichKeyShown reports whether the which-key popup is drawn.
 func (m Model) whichKeyShown() bool { return m.leader && m.whichKey }
 
-// whichKeyEntry is one "key → help" entry.
-func whichKeyEntry(b binding) string { return b.key + " → " + b.help }
+// whichKeyWidth is the width of a binding's "key → help" entry.
+func whichKeyWidth(b binding) int { return ansi.StringWidth(b.key + " → " + b.help) }
 
 // drawWhichKey lays the which-key popup over the bottom of the body: a
 // rule, then every Leader key in columns that wrap to fit the width,
@@ -48,14 +48,10 @@ func whichKeyEntry(b binding) string { return b.key + " → " + b.help }
 // The cursor is dropped when the popup covers it.
 func (m Model) drawWhichKey(th theme.Theme, body string, cursor *tea.Cursor) (string, *tea.Cursor) {
 	lines := strings.Split(body, "\n")
-	var entries []string
+	entries := bindingsIn(scopeLeader)
 	colW := 0
-	for _, b := range bindings {
-		if b.scope == scopeLeader {
-			e := whichKeyEntry(b)
-			entries = append(entries, e)
-			colW = max(colW, ansi.StringWidth(e))
-		}
+	for _, b := range entries {
+		colW = max(colW, whichKeyWidth(b))
 	}
 	colW += 2 // the gap between columns
 	cols := max(1, (m.w-1)/colW)
@@ -69,9 +65,9 @@ func (m Model) drawWhichKey(th theme.Theme, body string, cursor *tea.Cursor) (st
 			if i >= len(entries) {
 				break
 			}
-			k, help, _ := strings.Cut(entries[i], " → ")
-			pad := colW - ansi.StringWidth(entries[i])
-			row += key.Render(k) + hint.Render(" → ") + box.Render(help+strings.Repeat(" ", pad))
+			b := entries[i]
+			pad := colW - whichKeyWidth(b)
+			row += key.Render(b.key) + hint.Render(" → ") + box.Render(b.help+strings.Repeat(" ", pad))
 			used += colW
 		}
 		row = ansi.Truncate(row, m.w, "") + box.Render(strings.Repeat(" ", max(0, m.w-used)))

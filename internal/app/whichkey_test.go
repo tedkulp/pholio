@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -17,15 +16,10 @@ var leaderKeys = []string{
 	"z → zettel", "f → find", "n → new", "t → tasks", "? → help",
 }
 
-func deliver(m app.Model, msg tea.Msg) app.Model {
-	next, _ := m.Update(msg)
-	return next.(app.Model)
-}
-
 // waitLeader presses spc and lets the which-key delay pass.
 func waitLeader(m app.Model) app.Model {
 	m = keys(m, space)
-	return deliver(m, app.LeaderTick(m))
+	return send(m, app.LeaderTick(m))
 }
 
 func TestSpcStartsTheWhichKeyDelay(t *testing.T) {
@@ -60,7 +54,7 @@ func TestLeaderKeyBeforeTheDelayNeverDrawsThePopup(t *testing.T) {
 	m := keys(shell(t, shellVault(), "/vault/a.md"), space)
 	tick := app.LeaderTick(m)
 
-	m = deliver(typeKeys(m, "d"), tick)
+	m = send(typeKeys(m, "d"), tick)
 
 	if strings.Contains(screen(m), "→") {
 		t.Errorf("popup drawn after the leader key ran:\n%s", screen(m))
@@ -74,7 +68,7 @@ func TestStaleTickDoesNotOpenThePopupForALaterSpc(t *testing.T) {
 	m := keys(shell(t, shellVault(), "/vault/a.md"), space)
 	stale := app.LeaderTick(m)
 
-	m = deliver(keys(m, esc, space), stale)
+	m = send(keys(m, esc, space), stale)
 
 	if strings.Contains(screen(m), "→") {
 		t.Errorf("stale tick opened the popup:\n%s", screen(m))

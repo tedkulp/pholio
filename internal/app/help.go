@@ -9,11 +9,14 @@ import (
 	"github.com/tedkulp/pholio/internal/palette"
 )
 
-// helpScopes orders the help popup's rows and names each scope.
-var helpScopes = []struct {
+// helpScope names a scope in the help popup.
+type helpScope struct {
 	scope scope
 	name  string
-}{
+}
+
+// helpScopes orders the help popup's rows.
+var helpScopes = []helpScope{
 	{scopeLeader, "leader"},
 	{scopeGlobal, "global"},
 	{scopeSequence, "sequence"},
@@ -30,14 +33,12 @@ const helpKeysW = 10
 func (m Model) showHelp() Model {
 	var items []palette.Item
 	for _, s := range helpScopes {
-		for _, b := range bindings {
-			if b.scope == s.scope {
-				items = append(items, palette.Item{
-					Text:   fmt.Sprintf("%-*s%s", helpKeysW, typedKeys(b), b.help),
-					Detail: s.name,
-					Value:  b,
-				})
-			}
+		for _, b := range bindingsIn(s.scope) {
+			items = append(items, palette.Item{
+				Text:   fmt.Sprintf("%-*s%s", helpKeysW, typedKeys(b), b.help),
+				Detail: s.name,
+				Value:  b,
+			})
 		}
 	}
 	p := palette.New("Help", palette.Type).WithPlaceholder("filter keys").SetItems(items)

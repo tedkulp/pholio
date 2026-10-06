@@ -186,6 +186,17 @@ func lookup(s scope, key string) (action, bool) {
 	return "", false
 }
 
+// bindingsIn lists the bindings in a scope, in table order.
+func bindingsIn(s scope) []binding {
+	var out []binding
+	for _, b := range bindings {
+		if b.scope == s {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 // run performs an action.
 func (m Model) run(a action, arg string) (Model, tea.Cmd) {
 	h, ok := handlers[a]
@@ -222,10 +233,8 @@ func (m Model) sequenceKey(first, msg tea.KeyPressMsg) (Model, tea.Cmd) {
 // leaderHint lists the leader keys: "e sidebar  t tasks".
 func leaderHint() string {
 	var parts []string
-	for _, b := range bindings {
-		if b.scope == scopeLeader {
-			parts = append(parts, b.key+" "+b.help)
-		}
+	for _, b := range bindingsIn(scopeLeader) {
+		parts = append(parts, b.key+" "+b.help)
 	}
 	return strings.Join(parts, "  ")
 }

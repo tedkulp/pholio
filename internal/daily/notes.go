@@ -56,32 +56,33 @@ func parseName(name string) (time.Time, bool) {
 	return d, err == nil
 }
 
-// Entry is one existing Daily Note: its day and where it lives.
-type Entry struct {
+// Note is one existing Daily Note: its day and where it lives.
+type Note struct {
 	Day  time.Time
 	Path string
 }
 
-// days lists the Daily Notes anywhere under the daily folder, oldest
-// first, one per day. When a day has two, the one at Path(day) wins. A
-// missing daily folder has none.
-func (n Notes) days() ([]Entry, error) {
+// notes lists the Daily Notes anywhere under the daily folder, oldest
+// first, one per day. When a day has two, the one at Path(day) wins, or
+// else the one read last. A missing daily folder has none.
+func (n Notes) notes() ([]Note, error) {
+	if _, err := n.FS.Stat(n.dir()); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	found := map[time.Time]string{}
 	if err := n.collect(n.dir(), found); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	days := make([]Entry, 0, len(found))
+	notes := make([]Note, 0, len(found))
 	for d, p := range found {
-		days = append(days, Entry{Day: d, Path: p})
+		notes = append(notes, Note{Day: d, Path: p})
 	}
-	sort.Slice(days, func(i, j int) bool { return days[i].Day.Before(days[j].Day) })
-	return days, nil
+	sort.Slice(notes, func(i, j int) bool { return notes[i].Day.Before(notes[j].Day) })
+	return notes, nil
 }
 
-// collect adds the Daily Notes in dir and its subfolders to found.
+// collect adds the Daily Notes in dir and its subfolders to found. A
+// subfolder that vanishes during the walk is skipped.
 func (n Notes) collect(dir string, found map[time.Time]string) error {
 	entries, err := n.FS.ReadDir(dir)
 	if err != nil {
@@ -90,7 +91,7 @@ func (n Notes) collect(dir string, found map[time.Time]string) error {
 	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
 		if e.IsDir() {
-			if err := n.collect(p, found); err != nil {
+			if err := n.collect(p, found); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return err
 			}
 			continue
@@ -107,27 +108,27 @@ func (n Notes) collect(dir string, found map[time.Time]string) error {
 }
 
 // Prev is the nearest Daily Note before from's day.
-func (n Notes) Prev(from time.Time) (Entry, bool, error) {
-	days, err := n.days()
+func (n Notes) Prev(from time.Time) (Note, bool, error) {
+	notes, err := n.notes()
 	key := from.Format(dates.ISO)
-	for i := len(days) - 1; i >= 0; i-- {
-		if days[i].Day.Format(dates.ISO) < key {
-			return days[i], true, nil
+	for i := len(notes) - 1; i >= 0; i-- {
+		if notes[i].Day.Format(dates.ISO) < key {
+			return notes[i], true, nil
 		}
 	}
-	return Entry{}, false, err
+	return Note{}, false, err
 }
 
 // Next is the nearest Daily Note after from's day.
-func (n Notes) Next(from time.Time) (Entry, bool, error) {
-	days, err := n.days()
+func (n Notes) Next(from time.Time) (Note, bool, error) {
+	notes, err := n.notes()
 	key := from.Format(dates.ISO)
-	for _, d := range days {
-		if d.Day.Format(dates.ISO) > key {
-			return d, true, nil
+	for _, note := range notes {
+		if note.Day.Format(dates.ISO) > key {
+			return note, true, nil
 		}
 	}
-	return Entry{}, false, err
+	return Note{}, false, err
 }
 
 // Ensure makes sure day's Daily Note exists. A new one is filled from the

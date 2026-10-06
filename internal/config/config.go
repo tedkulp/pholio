@@ -44,7 +44,7 @@ type Config struct {
 	DailyFolder   string
 	DailyTemplate string
 	// DailySubfolder is a dates.Format layout, such as "YYYY/MM", for the
-	// folders under DailyFolder that Daily Notes go in. "" is none.
+	// folders under DailyFolder that new Daily Notes go in. "" is none.
 	DailySubfolder string
 	ZettelFolder   string
 	// NewNoteFolder is Vault-relative; "" is the Vault root.
@@ -225,13 +225,17 @@ func inVault(s string) string {
 	return ""
 }
 
+// layoutSample is any day; dates.Format tokens never render as a path
+// separator or "..", so one day checks a layout for every day.
+var layoutSample = time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+
 // inVaultLayout checks a dates.Format folder layout, both as written and
 // as rendered, since [bracketed] text is copied out as is.
 func inVaultLayout(s string) string {
 	if want := inVault(s); want != "" {
 		return want
 	}
-	return inVault(dates.Format(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), s))
+	return inVault(dates.Format(layoutSample, s))
 }
 
 func inVaultFile(s string) string {

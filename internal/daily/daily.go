@@ -1,6 +1,6 @@
 // Package daily finds, creates and fills Daily Notes: one Note per day at
-// <daily_folder>/YYYY-MM-DD.md, made from the daily Template the first
-// time that day is opened.
+// <daily_folder>/[<daily_subfolder>/]YYYY-MM-DD.md, made from the daily
+// Template the first time that day is opened.
 package daily
 
 import (

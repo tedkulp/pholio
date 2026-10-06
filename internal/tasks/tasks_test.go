@@ -51,6 +51,7 @@ func TestStampAddsDoneWhenATaskBecomesDone(t *testing.T) {
 		{"- [/] a #w", "- [X] a #w", "- [X] a #w done:2026-10-05"},
 		{"- [-] a ", "- [x] a ", "- [x] a done:2026-10-05"},
 		{"- a", "- [x] a", "- [x] a done:2026-10-05"},
+		{"- [ ]", "- [x]", "- [x] done:2026-10-05"},
 		{"- [x]", "- [x]", "- [x]"},
 		{"", "- [x]", "- [x] done:2026-10-05"},
 		{"- [ ] a done:2026-01-01", "- [x] a done:2026-01-01", "- [x] a done:2026-10-05"},

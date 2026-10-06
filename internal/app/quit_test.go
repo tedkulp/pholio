@@ -97,3 +97,26 @@ func TestWAfterOverwriteDoesNotQuit(t *testing.T) {
 		t.Error(":w quit after the overwrite was confirmed")
 	}
 }
+
+func TestSpcQQuits(t *testing.T) {
+	m := keys(shell(t, shellVault(), "/vault/a.md"), space)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+
+	if !quits(cmd) {
+		t.Error("spc q did not quit")
+	}
+}
+
+func TestSpcQAsksAboutUnsavedChanges(t *testing.T) {
+	m := keys(typeKeys(shell(t, shellVault(), "/vault/a.md"), "x"), space)
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+
+	if cmd != nil {
+		t.Fatal("spc q on a dirty buffer quit without asking")
+	}
+	if got := messageLine(next.(app.Model)); !strings.HasPrefix(got, "Save changes to a.md before quitting?") {
+		t.Errorf("message = %q, want the quit question", got)
+	}
+}

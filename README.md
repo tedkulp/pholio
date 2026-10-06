@@ -84,7 +84,7 @@ The editor is vim: counts, motions, `d`/`c`/`y`, text objects (including markdow
 | `ctrl+o` / `tab` | jump back / forward | |
 | `ctrl+h` / `ctrl+l` | focus sidebar / editor | |
 | `F7` / `F8` | cycle theme / reload config and theme | |
-| `ctrl+q` | quit (asks if there are unsaved changes) | `:q` |
+| `ctrl+q` / `spc q` | quit (asks if there are unsaved changes) | `:q` |
 
 In the sidebar, `a` adds a Note (end the name with `/` for a folder), `r` renames or moves, `d` deletes to the system trash, `.` shows dotfiles, and `<` / `>` resize it. Renaming offers to update every Link that points at the Note.
 

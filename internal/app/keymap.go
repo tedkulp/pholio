@@ -99,6 +99,7 @@ var bindings = []binding{
 	{scopeLeader, "f", actFindNote, "find"},
 	{scopeLeader, "n", actNewNote, "new"},
 	{scopeLeader, "t", actTasks, "tasks"},
+	{scopeLeader, "q", actQuit, "quit"},
 	{scopeLeader, "?", actHelp, "help"},
 
 	{scopeSequence, "[d", actDailyPrev, "previous Daily Note"},

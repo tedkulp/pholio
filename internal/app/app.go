@@ -58,11 +58,16 @@ type Model struct {
 	focus  focus
 	state  *config.StateStore // nil without a session: width is not saved
 
-	leader  bool             // spc was pressed; the next key is a leader key
-	pending *tea.KeyPressMsg // the first key of a sequence such as [d
-	prompt  *prompt          // a question on the message line
-	overlay *overlay         // an open palette
-	exq     *exQueue         // ex commands the engine handed to the app
+	leader bool // spc was pressed; the next key is a leader key
+	// whichKey: the Leader has waited long enough to show the which-key
+	// popup (whichkey.go). leaderGen counts spc presses, so a tick for an
+	// earlier one is ignored.
+	whichKey  bool
+	leaderGen int
+	pending   *tea.KeyPressMsg // the first key of a sequence such as [d
+	prompt    *prompt          // a question on the message line
+	overlay   *overlay         // an open palette
+	exq       *exQueue         // ex commands the engine handed to the app
 
 	session    *config.Session // nil until WithSession
 	appearance appearance      // the theme and how it was chosen (theme.go)
@@ -188,6 +193,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m, cmd = m.grepTick(msg)
 	case grepResultMsg:
 		m = m.grepResult(msg)
+	case leaderTickMsg:
+		m = m.leaderTick(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()
@@ -352,6 +359,9 @@ func (m Model) View() tea.View {
 	var cursor *tea.Cursor
 	if m.h > 2 {
 		body, c := m.body()
+		if m.whichKeyShown() {
+			body, c = m.drawWhichKey(th, body, c)
+		}
 		rows = append([]string{body}, rows...)
 		cursor = c
 	}

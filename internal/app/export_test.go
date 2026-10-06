@@ -56,3 +56,7 @@ func (m Model) PaletteRows() []string {
 	}
 	return out
 }
+
+// LeaderTick is the tick that opens the which-key popup for the spc
+// pressed last, as if the delay had passed.
+func LeaderTick(m Model) tea.Msg { return leaderTickMsg{m.leaderGen} }

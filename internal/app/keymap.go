@@ -138,7 +138,7 @@ var handlers map[action]handler
 
 func init() {
 	handlers = map[action]handler{
-		actLeader:        func(m Model, _ string) (Model, tea.Cmd) { m.leader = true; return m, nil },
+		actLeader:        func(m Model, _ string) (Model, tea.Cmd) { return m.startLeader() },
 		actToggleSidebar: func(m Model, _ string) (Model, tea.Cmd) { return m.toggleSidebar(), nil },
 		actFocusSidebar:  func(m Model, _ string) (Model, tea.Cmd) { return m.focusSidebar(), nil },
 		actFocusEditor:   func(m Model, _ string) (Model, tea.Cmd) { m.focus = focusEditor; return m, nil },

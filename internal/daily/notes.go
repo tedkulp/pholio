@@ -81,8 +81,9 @@ func (n Notes) notes() ([]Note, error) {
 	return notes, nil
 }
 
-// collect adds the Daily Notes in dir and its subfolders to found. A
-// subfolder that vanishes during the walk is skipped.
+// collect adds the Daily Notes in dir and its subfolders to found.
+// Hidden subfolders (.git, .trash, …) and any that vanish during the walk
+// are skipped.
 func (n Notes) collect(dir string, found map[time.Time]string) error {
 	entries, err := n.FS.ReadDir(dir)
 	if err != nil {
@@ -91,6 +92,9 @@ func (n Notes) collect(dir string, found map[time.Time]string) error {
 	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
 		if e.IsDir() {
+			if strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
 			if err := n.collect(p, found); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return err
 			}

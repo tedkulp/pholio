@@ -207,3 +207,17 @@ func TestEnsureReportsATemplateItCannotRead(t *testing.T) {
 		t.Errorf("err = %v, want a read error", err)
 	}
 }
+
+func TestPrevAndNextSkipHiddenFolders(t *testing.T) {
+	fsys := seamtest.NewMemFS(map[string]string{
+		"/vault/2026-10-01.md":             "",
+		"/vault/.git/2026-10-02.md":        "",
+		"/vault/.trash/2026/2026-10-03.md": "",
+		"/vault/journal/2026-10-04.md":     "",
+	})
+	n := daily.Notes{FS: fsys, Vault: "/vault", Folder: ""}
+	got, ok, err := n.Next(day("2026-10-01"))
+	if err != nil || !ok || got.Path != "/vault/journal/2026-10-04.md" {
+		t.Errorf("Next = %+v %v %v, want journal/2026-10-04.md", got, ok, err)
+	}
+}

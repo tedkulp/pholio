@@ -70,7 +70,7 @@ const (
 )
 
 // binding maps a key in a scope to an action. help describes it in the
-// Leader hint, the which-key popup and the help popup; every binding has
+// Leader hint and the help popup; every binding has
 // one.
 type binding struct {
 	scope  scope
@@ -144,7 +144,7 @@ var handlers map[action]handler
 
 func init() {
 	handlers = map[action]handler{
-		actLeader:        func(m Model, _ string) (Model, tea.Cmd) { return m.startLeader() },
+		actLeader:        func(m Model, _ string) (Model, tea.Cmd) { m.leader = true; return m, nil },
 		actToggleSidebar: func(m Model, _ string) (Model, tea.Cmd) { return m.toggleSidebar(), nil },
 		actFocusSidebar:  func(m Model, _ string) (Model, tea.Cmd) { return m.focusSidebar(), nil },
 		actFocusEditor:   func(m Model, _ string) (Model, tea.Cmd) { m.focus = focusEditor; return m, nil },

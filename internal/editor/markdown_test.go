@@ -140,26 +140,27 @@ func TestStrikethroughMarkersShowOnTheCursorLineAndWithConcealOff(t *testing.T) 
 }
 
 func TestTildesThatAreNotStrikethroughStayPlain(t *testing.T) {
-	text := "x\n~b~\n~~~~\n~~~ x\n`~~b~~`\n- [x] done ~~x~~\n"
-	m := open(text, 30, 8)
+	for _, c := range []struct {
+		line string
+		slot theme.Slot
+		text string
+	}{
+		{"a ~b~ c", theme.UIBase, "a ~b~ c"},
+		{"a ~~~~ b", theme.UIBase, "a ~~~~ b"},
+		{"~~~", theme.MarkdownMarker, "~~~"}, // a bare ~~~ line is a fence
+		{"a `~~b~~` c", theme.MarkdownCode, "~~b~~"},
+		{"- [x] done ~~x~~", theme.MarkdownTaskDone, "[x] done ~~x~~"},
+	} {
+		m := open("x\n"+c.line+"\n", 30, 4)
 
-	view, _ := m.View(th)
+		view, _ := m.View(th)
 
-	rows := plainRows(view)
-	for i, want := range []string{1: "~b~", 2: "~~~~", 4: "~~b~~", 5: "- [x] done ~~x~~"} {
-		if want != "" && rows[i] != want {
-			t.Errorf("row %d = %q, want %q", i, rows[i], want)
+		if row := plainRows(view)[1]; !strings.Contains(row, c.text) {
+			t.Errorf("%q: row = %q, want %q shown", c.line, row, c.text)
 		}
-	}
-	if strings.Contains(view, styled(theme.MarkdownStrike, "b")) ||
-		strings.Contains(view, styled(theme.MarkdownStrike, "x")) {
-		t.Errorf("tildes struck text they should not:\n%q", view)
-	}
-	if !strings.Contains(view, styled(theme.MarkdownCode, "~~b~~")) {
-		t.Errorf("code lost its tildes:\n%q", view)
-	}
-	if !strings.Contains(view, styled(theme.MarkdownTaskDone, "[x] done ~~x~~")) {
-		t.Errorf("done Task not drawn whole as task_done:\n%q", view)
+		if !strings.Contains(view, styled(c.slot, c.text)) {
+			t.Errorf("%q: %q is not drawn with %s", c.line, c.text, c.slot)
+		}
 	}
 }
 

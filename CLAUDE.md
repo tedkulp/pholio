@@ -1,6 +1,6 @@
 # pholio
 
-A terminal markdown editor built with Go and Bubble Tea. It has a vim-style editor, a vault-wide Task List, Daily Notes, and Zettel creation. Domain language is defined in `CONTEXT.md`.
+A terminal markdown editor built with Go and Bubble Tea. It has a vim-style editor, a vault-wide Task List, Daily Notes, and Zettel creation. Domain language is defined in `GLOSSARY.md`.
 
 ## Agent skills
 
@@ -14,4 +14,4 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.

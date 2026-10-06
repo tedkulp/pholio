@@ -171,7 +171,7 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-The v1 behaviour is specified in [issue #17](https://github.com/tedkulp/pholio/issues/17), and domain terms (Note, Vault, Link, Task…) are defined in [`CONTEXT.md`](CONTEXT.md).
+The v1 behaviour is specified in [issue #17](https://github.com/tedkulp/pholio/issues/17), and domain terms (Note, Vault, Link, Task…) are defined in [`GLOSSARY.md`](GLOSSARY.md).
 
 ## License
 

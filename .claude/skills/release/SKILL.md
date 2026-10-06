@@ -68,7 +68,7 @@ Heading format: `## [0.2.0] - YYYY-MM-DD`, bracketed, no leading `v`, hyphen.
 Categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 If Unreleased is missing things, fill it from the commit log in Step 3, written
-for users in `CONTEXT.md` vocabulary (Note, Vault, Zettel, Task List…), not as
+for users in `GLOSSARY.md` vocabulary (Note, Vault, Zettel, Task List…), not as
 commit subjects.
 
 Use today's real date:

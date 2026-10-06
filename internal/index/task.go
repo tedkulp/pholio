@@ -43,7 +43,8 @@ type Task struct {
 }
 
 // ParseTask parses one line as a Task. ok is false when the line isn't one.
-// Path and Line are left zero.
+// Path and Line are left zero. An empty checkbox parses with Text "";
+// callers decide whether it counts.
 func ParseTask(line string) (t Task, ok bool) {
 	rest := strings.TrimLeft(line, " \t")
 	t.Indent = len(line) - len(rest)

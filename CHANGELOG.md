@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - A new Zettel's timestamp ID has seconds: `YYYYMMDDHHmmss`. Existing 12-digit Zettels are left as they are.
+- An empty checkbox, such as `- [ ]` with nothing after it, is no longer a Task and stays out of the Task List.
 
 ## [0.1.0] - 2026-10-06
 

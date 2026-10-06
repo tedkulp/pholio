@@ -90,3 +90,16 @@ func TestUpdatesDuringAScanWinOverWhatTheScanRead(t *testing.T) {
 		t.Errorf("Tasks = %q", got)
 	}
 }
+
+func TestAnEmptyCheckboxBecomesATaskOnceItHasText(t *testing.T) {
+	ix, root := scanned(t, "links")
+
+	ix.Update(root+"/sub/gamma.md", []byte("# Gamma\n- [ ] \n"))
+	if got := taskRows(ix.Tasks()); len(got) != 0 {
+		t.Errorf("empty checkbox listed: %q", got)
+	}
+	ix.Update(root+"/sub/gamma.md", []byte("# Gamma\n- [ ] typed\n"))
+	if got := taskRows(ix.Tasks()); !reflect.DeepEqual(got, []string{"sub/gamma.md:1 [ ] typed"}) {
+		t.Errorf("Tasks = %q", got)
+	}
+}

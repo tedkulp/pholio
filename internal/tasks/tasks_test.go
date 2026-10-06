@@ -96,6 +96,8 @@ func TestToggleChecksAnOpenTaskAndUnchecksADoneOne(t *testing.T) {
 		{"- [x] a done:2026-10-01", "- [ ] a"},
 		{"- [X] a done:2026-10-01 pri:high", "- [ ] a pri:high"},
 		{"- [ж] a", "- [x] a done:2026-10-05"},
+		{"- [ ]", "- [x] done:2026-10-05"},
+		{"- [x] done:2026-10-01", "- [ ]"},
 	} {
 		got, ok := tasks.Toggle(c.in, today)
 		if !ok || got != c.want {

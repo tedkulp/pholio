@@ -78,3 +78,22 @@ func TestParseFlagsSyncConflicts(t *testing.T) {
 		t.Error("plain note flagged as conflict")
 	}
 }
+
+func TestParseSkipsEmptyCheckboxes(t *testing.T) {
+	src := "- [ ]\n" +
+		"- [ ]   \n" +
+		"- [x]\n" +
+		"- [-] \t\n" +
+		"- [ ] due:fri #home\n" +
+		"- [ ] buy milk\n"
+	n := index.Parse("n.md", []byte(src))
+
+	var got []string
+	for _, tk := range n.Tasks {
+		got = append(got, fmt.Sprintf("%s@%d", tk.Text, tk.Line))
+	}
+	want := []string{"due:fri #home@4", "buy milk@5"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Tasks = %q, want %q", got, want)
+	}
+}

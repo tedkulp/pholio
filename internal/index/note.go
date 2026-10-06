@@ -64,7 +64,8 @@ func Parse(p string, contents []byte) Note {
 			if h.Level == 1 && n.Title == "" {
 				n.Title = h.Text
 			}
-		} else if t, ok := ParseTask(line); ok {
+		} else if t, ok := ParseTask(line); ok && t.Text != "" {
+			// An empty checkbox is not a Task.
 			t.Path, t.Line = p, lineNo
 			n.Tasks = append(n.Tasks, t)
 		}

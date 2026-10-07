@@ -39,6 +39,21 @@ var (
 	groupAllDone  = taskGroup{"Done and cancelled", theme.MarkdownTaskDone}
 )
 
+// showTaskListAt opens the Task List with the Task at line (0-based) of
+// the Note at path (Vault-relative) selected, or the first row when it
+// isn't listed.
+func (m Model) showTaskListAt(v taskView, path string, line int) (Model, tea.Cmd) {
+	m, cmd := m.showTaskList(v)
+	if m.overlay == nil || !m.indexReady() {
+		return m, cmd
+	}
+	sel := slices.IndexFunc(m.overlay.p.Visible(), func(it palette.Item) bool {
+		t := it.Value.(index.Task)
+		return t.Path == path && t.Line == line
+	})
+	return m.taskItems(v, max(0, sel)), cmd
+}
+
 // showTaskList (spc t, :tasks) opens the Task List in list mode.
 func (m Model) showTaskList(v taskView) (Model, tea.Cmd) {
 	if m.index() == nil {
@@ -80,7 +95,7 @@ func taskHint(v taskView) string {
 	if v.all {
 		d = "D done today"
 	}
-	return "space toggle · enter open · a add · " + d + " · / filter · esc close"
+	return "spc toggle · enter open · e edit · a add · " + d + " · / filter · esc close"
 }
 
 // taskEvent handles the Task List's keys.
@@ -107,7 +122,9 @@ func (m Model) taskEvent(v taskView, ev palette.Event) (Model, tea.Cmd) {
 			v.all = !v.all
 			return m.taskItems(v, 0), nil
 		case "a":
-			return m.promptTask(v), nil
+			return m.addListed(v), nil
+		case "e":
+			return m.editListed(v)
 		}
 	}
 	return m, nil
@@ -244,35 +261,11 @@ func taskMatches(t index.Task, query string) bool {
 	return true
 }
 
-// taskPlaceholder is the add prompt's example Task, in each Task Format.
-var taskPlaceholder = map[index.Format]string{
-	index.Dataview: "text  [due:: tomorrow] [priority:: high] #tag",
-	index.Emoji:    "text  📅 tomorrow ⏫ #tag",
-}
-
-// promptTask (a) asks for a new Task's text. Either way it returns to the
-// Task List.
-func (m Model) promptTask(v taskView) Model {
-	p := palette.New("Add Task to today's Daily Note", palette.Type).
-		WithPlaceholder(taskPlaceholder[m.config().TaskFormat]).
-		WithHint("enter add · esc back")
-	return m.showPalette(p, func(m Model, ev palette.Event) (Model, tea.Cmd) {
-		if ev.Kind == palette.Chosen && strings.TrimSpace(ev.Query) != "" {
-			m = m.addTask(ev.Query)
-		}
-		if ev.Kind == palette.Chosen || ev.Kind == palette.Closed {
-			return m.showTaskList(v)
-		}
-		return m, nil
-	})
-}
-
-// addTask puts "- [ ] text" under tasks_heading in today's Daily Note
-// (see tasks.AddAt), creating the Note if needed. Relative dates are
-// expanded. When the Note is open the line goes into its buffer.
-func (m Model) addTask(text string) Model {
+// addTask puts a Task line under tasks_heading in today's Daily Note (see
+// tasks.AddAt), creating the Note if needed. When the Note is open the
+// line goes into its buffer.
+func (m Model) addTask(line string) Model {
 	day := m.today()
-	line := tasks.Expand("- [ ] "+strings.TrimSpace(text), day)
 	heading := m.config().TasksHeading
 	path := m.dailyNotes().Path(day)
 	err := m.editNote(path, func(e *engine.Engine) error {

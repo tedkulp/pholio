@@ -182,3 +182,30 @@ func read(t *testing.T, fsys *seamtest.MemFS, name string) string {
 	}
 	return string(b)
 }
+
+func TestRewriteFileRebuildsTheLineOnDisk(t *testing.T) {
+	fsys := seamtest.NewMemFS(map[string]string{"/v/a.md": "# A\r\n- [ ] a [due:: 2026-10-10]\r\n"})
+
+	v := tasks.Values{Description: "b", Priority: "high"}
+	if err := tasks.RewriteFile(fsys, "/v/a.md", 1, v, index.Dataview, today); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := read(t, fsys, "/v/a.md"), "# A\r\n- [ ] b [priority:: high]\r\n"; got != want {
+		t.Errorf("file = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteFileRefusesALineThatIsNotATask(t *testing.T) {
+	fsys := seamtest.NewMemFS(map[string]string{"/v/a.md": "# A\n- [ ]\n"})
+
+	for _, line := range []int{0, 1, 3} {
+		err := tasks.RewriteFile(fsys, "/v/a.md", line, tasks.Values{Description: "x"}, index.Dataview, today)
+		if !errors.Is(err, tasks.ErrNotATask) {
+			t.Errorf("line %d: err = %v, want ErrNotATask", line, err)
+		}
+	}
+	if got := read(t, fsys, "/v/a.md"); got != "# A\n- [ ]\n" {
+		t.Errorf("file changed: %q", got)
+	}
+}

@@ -292,7 +292,7 @@ func (m Model) View(th theme.Theme, w, h int) (box string, x, y int, cursor *tea
 	if m.hint != "" {
 		lines = append(lines, th.Style(theme.OverlayHint).Render(m.hint))
 	}
-	box = m.frame(th, lines, inner)
+	box = Frame(th, m.title, lines, inner)
 	if m.typing {
 		cursor = tea.NewCursor(x+2+2+ansi.StringWidth(m.query), y+1)
 		cursor.Shape = tea.CursorBar
@@ -454,13 +454,14 @@ func marked(th theme.Theme, it Item, slot theme.Slot, w int) string {
 	return s + base.Render(strings.Repeat(" ", max(0, w-ansi.StringWidth(s))))
 }
 
-// frame draws a rounded border around lines with the title in the top edge.
-func (m Model) frame(th theme.Theme, lines []string, inner int) string {
+// Frame draws a rounded border around lines, each fitted to inner cells,
+// with title in the top edge. Other overlays use it to look like a
+// palette.
+func Frame(th theme.Theme, title string, lines []string, inner int) string {
 	bs, box := th.Style(theme.OverlayBorder), th.Style(theme.OverlayBox)
 	full := inner + 2
-	title := " " + m.title + " "
-	if m.title == "" {
-		title = ""
+	if title != "" {
+		title = " " + title + " "
 	}
 	title = ansi.Truncate(title, max(0, full-1), "…")
 	out := []string{bs.Render("╭─") + th.Style(theme.OverlayTitle).Render(title) +

@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `ctrl+shift+h` / `ctrl+shift+l` focus the sidebar / editor, like `ctrl+h` / `ctrl+l`, for multiplexers such as herdr that swallow those keys.
 - Task Metadata uses Obsidian Tasks' `dataview` (`[due:: 2026-10-10]`) and `emoji` (`📅 2026-10-10`) formats, read on every Task line. Priority has Obsidian's five levels and sort order.
+- The Task Editor, a pop-up form for one Task's description, Status, due, scheduled and start dates, and priority. Open it with `spc T` or `:task` on a Task's line, or `e` in the Task List. The Task List's `a` now opens it empty to add a Task.
+- The help popup (`spc ?`) lists the ex commands too.
 - `task_format` (`"dataview"` or `"emoji"`) picks the format pholio writes done dates in when a Task has no metadata yet.
 
 ### Changed

@@ -38,11 +38,11 @@ func TestLeaderHintListsHelp(t *testing.T) {
 }
 
 func TestTypingFiltersHelpAndEscCloses(t *testing.T) {
-	m := typeKeys(keys(shell(t, shellVault(), "/vault/a.md"), space), "?daily")
+	m := typeKeys(keys(shell(t, shellVault(), "/vault/a.md"), space), "?daily note")
 
 	got := m.PaletteRows()
 	if len(got) != 2 || !strings.Contains(got[0], "[d") || !strings.Contains(got[1], "]d") {
-		t.Errorf("rows for \"daily\" = %q, want [d and ]d", got)
+		t.Errorf("rows for \"daily note\" = %q, want [d and ]d", got)
 	}
 
 	m = keys(m, esc)

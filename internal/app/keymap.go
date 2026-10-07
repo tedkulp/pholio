@@ -42,6 +42,7 @@ const (
 	actTreeRename    action = "tree-rename"
 	actTreeDelete    action = "tree-delete"
 	actTasks         action = "tasks"
+	actEditTask      action = "edit-task"
 	actHelp          action = "help"
 )
 
@@ -102,6 +103,7 @@ var bindings = []binding{
 	{scopeLeader, "f", actFindNote, "find"},
 	{scopeLeader, "n", actNewNote, "new"},
 	{scopeLeader, "t", actTasks, "tasks"},
+	{scopeLeader, "T", actEditTask, "edit Task"},
 	{scopeLeader, "q", actQuit, "quit"},
 	{scopeLeader, "?", actHelp, "help"},
 
@@ -124,20 +126,29 @@ var bindings = []binding{
 	{scopeNormal, "gd", actGoToLink, "go to Link"},
 }
 
-// exCommands maps ":" commands to actions; the text after the name is the
-// action's argument. The engine's built-ins (:w, :q, :e) win over these.
-var exCommands = map[string]action{
-	"sidebar":   actToggleSidebar,
-	"today":     actToday,
-	"daily":     actJumpToDate,
-	"backlinks": actBacklinks,
-	"grep":      actGrep,
-	"zettel":    actZettel,
-	"find":      actFindNote,
-	"new":       actNewNote,
-	"rename":    actRenameNote,
-	"delete":    actDeleteNote,
-	"tasks":     actTasks,
+// exCommand maps a ":" command to an action; the text after the name is
+// the action's argument. help describes it in the help popup.
+type exCommand struct {
+	name   string
+	action action
+	help   string
+}
+
+// exCommands are the app's ex commands, in help order. The engine's
+// built-ins (:w, :q, :e) win over these.
+var exCommands = []exCommand{
+	{"sidebar", actToggleSidebar, "sidebar"},
+	{"today", actToday, "today"},
+	{"daily", actJumpToDate, "date"},
+	{"backlinks", actBacklinks, "backlinks"},
+	{"grep", actGrep, "search"},
+	{"zettel", actZettel, "zettel"},
+	{"find", actFindNote, "find"},
+	{"new", actNewNote, "new"},
+	{"rename", actRenameNote, "rename Note"},
+	{"delete", actDeleteNote, "delete Note"},
+	{"tasks", actTasks, "tasks"},
+	{"task", actEditTask, "edit Task"},
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -176,6 +187,7 @@ func init() {
 		actTreeRename:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeRename() },
 		actTreeDelete:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeDelete() },
 		actTasks:         func(m Model, _ string) (Model, tea.Cmd) { return m.showTaskList(taskView{}) },
+		actEditTask:      func(m Model, _ string) (Model, tea.Cmd) { return m.editTaskAtCursor() },
 		actHelp:          func(m Model, _ string) (Model, tea.Cmd) { return m.showHelp(), nil },
 	}
 }
@@ -268,8 +280,9 @@ type exQueue struct{ reqs []exRequest }
 // registerEx teaches an engine the app's ex commands.
 func (m Model) registerEx(e *engine.Engine) {
 	q := m.exq
-	for name, a := range exCommands {
-		e.Register(name, func(_ *engine.Engine, c engine.ExCmd) error {
+	for _, c := range exCommands {
+		a := c.action
+		e.Register(c.name, func(_ *engine.Engine, c engine.ExCmd) error {
 			q.reqs = append(q.reqs, exRequest{a, c.Arg})
 			return nil
 		})

@@ -68,3 +68,16 @@ func (m Model) PaletteRows() []string {
 	}
 	return out
 }
+
+// FormValues are the open form's rows' values, or nil when no form is open.
+func (m Model) FormValues() []string {
+	if m.overlay == nil || m.overlay.form == nil {
+		return nil
+	}
+	return m.overlay.form.Values()
+}
+
+// FormInvalid reports whether row i of the open form is marked refused.
+func (m Model) FormInvalid(i int) bool {
+	return m.overlay != nil && m.overlay.form != nil && m.overlay.form.Invalid(i)
+}

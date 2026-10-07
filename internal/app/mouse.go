@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/engine"
+	"github.com/tedkulp/pholio/internal/form"
 	"github.com/tedkulp/pholio/internal/palette"
 	"github.com/tedkulp/pholio/internal/sidebar"
 )
@@ -131,12 +132,19 @@ func (m Model) click(e tea.Mouse) (Model, tea.Cmd) {
 
 // overlayMouse handles the mouse while a palette is open: a click on a
 // row chooses it, a click on the backdrop closes the palette and the wheel
-// over the palette moves its selection. Nothing reaches the panes.
+// over the palette moves its selection. Over a form, only a click on the
+// backdrop does anything: it closes the form. Nothing reaches the panes.
 func (m Model) overlayMouse(msg tea.MouseMsg) (Model, tea.Cmd) {
 	e := msg.Mouse()
 	blank := strings.Repeat("\n", max(0, m.h-1))
 	c, _ := m.layers(m.appearance.theme, blank)
 	hit := c.Hit(e.X, e.Y).ID()
+	if f := m.overlay.form; f != nil { // a click on the backdrop closes a form
+		if _, ok := msg.(tea.MouseClickMsg); ok && e.Button == tea.MouseLeft && hit == layerBackdrop {
+			return m.formEvent(*f, form.Event{Kind: form.Closed})
+		}
+		return m, nil
+	}
 	p := m.overlay.p
 	switch msg.(type) {
 	case tea.MouseClickMsg:

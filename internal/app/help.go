@@ -28,8 +28,8 @@ var helpScopes = []helpScope{
 // helpKeysW is the width of the keys column.
 const helpKeysW = 14
 
-// showHelp (spc ?) opens the help popup: one row per binding, which runs
-// it on enter, so it doubles as a command palette.
+// showHelp (spc ?) opens the help popup: one row per binding and per ex
+// command, which runs it on enter, so it doubles as a command palette.
 func (m Model) showHelp() Model {
 	var items []palette.Item
 	for _, s := range helpScopes {
@@ -40,6 +40,13 @@ func (m Model) showHelp() Model {
 				Value:  b,
 			})
 		}
+	}
+	for _, c := range exCommands {
+		items = append(items, palette.Item{
+			Text:   fmt.Sprintf("%-*s%s", helpKeysW, ":"+c.name, c.help),
+			Detail: "ex",
+			Value:  c,
+		})
 	}
 	p := palette.New("Help", palette.Type).WithPlaceholder("filter keys").SetItems(items)
 	return m.showPalette(p, onHelp)
@@ -61,8 +68,14 @@ func typedKeys(b binding) string {
 }
 
 func onHelp(m Model, ev palette.Event) (Model, tea.Cmd) {
+	if ev.Kind != palette.Chosen || !ev.OK {
+		return m, nil
+	}
+	if c, ok := ev.Item.Value.(exCommand); ok {
+		return m.run(c.action, "")
+	}
 	b, ok := ev.Item.Value.(binding)
-	if ev.Kind != palette.Chosen || !ev.OK || !ok {
+	if !ok {
 		return m, nil
 	}
 	switch {

@@ -75,6 +75,7 @@ The editor is vim: counts, motions, `d`/`c`/`y`, text objects (including markdow
 | `[d` / `]d` | previous / next existing Daily Note | |
 | `spc D` | jump to a date (ISO or `tomorrow`, `fri`, `+2w`…) | `:daily <date>` |
 | `spc t` | Task List | `:tasks` |
+| `spc T` | Task Editor for the Task on the cursor line | `:task` |
 | `spc f` | find a Note | `:find [query]` |
 | `spc /` | search the Vault | `:grep [query]` |
 | `spc b` | Backlinks to this Note | `:backlinks` |
@@ -115,7 +116,9 @@ Task Metadata uses the two formats of Obsidian's Tasks plugin, so a Vault reads 
 
 Dataview fields may also use `(due:: …)`. When you leave insert mode, relative due and done dates like `fri` or `+3d` are rewritten as ISO dates. Checking a Task off appends today's done date (before a trailing `^block-id`), and unchecking removes it. pholio writes it in the format of the line's first field, or `task_format` if the line has none.
 
-The Task List (`spc t`) groups open Tasks into Overdue, Today, Upcoming and No date, and sorts each group by due date, then priority (highest, high, medium, none, low, lowest). In it, `space` toggles, `enter` jumps to the line, `a` adds a Task to today's Daily Note, `D` shows all done and cancelled Tasks, and `/` filters by text, `#tag` or file.
+The Task List (`spc t`) groups open Tasks into Overdue, Today, Upcoming and No date, and sorts each group by due date, then priority (highest, high, medium, none, low, lowest). In it, `space` toggles, `enter` jumps to the line, `e` edits the Task, `a` adds a Task to today's Daily Note, `D` shows all done and cancelled Tasks, and `/` filters by text, `#tag` or file.
+
+The Task Editor is a form for one Task: its Description (text and `#tags`), Status (open, in progress, done, cancelled), Due, Scheduled and Start dates, and Priority. Open it with `spc T` or `:task` on a Task's line, or `e` in the Task List; the Task List's `a` opens it empty. `tab` / `shift+tab` move between rows, `space`, `←` and `→` change Status and Priority, and the date rows take ISO dates or `today`, `fri`, `+3d`…, saved as ISO dates. An empty date row removes the field. `enter` saves, unless a date row isn't a date, and `esc` discards the edits. Saving rebuilds the line as checkbox, Description, then its fields (each in its own format, new ones in the line's format or `task_format`), then any `^block-id`; fields the form doesn't show, like `[created:: …]` or `✅ …`, are kept. In the open Note the save is one undoable change to the buffer; other Notes are rewritten on disk.
 
 ## Configuration
 

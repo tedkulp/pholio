@@ -10,8 +10,9 @@ import (
 	"github.com/tedkulp/pholio/internal/index"
 )
 
-// ErrNotATask is returned by ToggleFile when the line isn't a Task (or
-// doesn't exist), for example because the file changed since it was read.
+// ErrNotATask is returned by ToggleFile and RewriteFile when the line
+// isn't a Task (or doesn't exist), for example because the file changed
+// since it was read.
 var ErrNotATask = errors.New("not a Task")
 
 // Hook is the engine Fixup that applies the Task rules to each change: the
@@ -40,6 +41,20 @@ func ToggleLine(e *engine.Engine, line int, def index.Format, today time.Time) b
 	return ok
 }
 
+// RewriteLine rebuilds the Task on line (0-based) of e's buffer from v
+// (see Rewrite) as one undoable edit. It reports false, changing nothing,
+// when the line isn't a Task.
+func RewriteLine(e *engine.Engine, line int, v Values, def index.Format, today time.Time) bool {
+	if line < 0 || line >= e.Buf.LineCount() {
+		return false
+	}
+	text, ok := rewriteTask(e.Buf.Line(line), v, def, today)
+	if ok {
+		e.SetLine(line, text)
+	}
+	return ok
+}
+
 // FS is what ToggleFile needs to read and write a Note.
 type FS interface {
 	ReadFile(name string) ([]byte, error)
@@ -50,6 +65,29 @@ type FS interface {
 // Toggle) and writes the file back, keeping its line endings. It returns
 // ErrNotATask, writing nothing, when the line isn't a Task.
 func ToggleFile(fsys FS, path string, line int, def index.Format, today time.Time) error {
+	return editFile(fsys, path, line, func(l string) (string, bool) { return Toggle(l, def, today) })
+}
+
+// RewriteFile rebuilds the Task on line (0-based) of the file at path from
+// v (see Rewrite) and writes the file back, keeping its line endings. It
+// returns ErrNotATask, writing nothing, when the line isn't a Task.
+func RewriteFile(fsys FS, path string, line int, v Values, def index.Format, today time.Time) error {
+	return editFile(fsys, path, line, func(l string) (string, bool) { return rewriteTask(l, v, def, today) })
+}
+
+// rewriteTask is Rewrite for a line that must be a Task already: an empty
+// checkbox doesn't count.
+func rewriteTask(line string, v Values, def index.Format, today time.Time) (string, bool) {
+	if _, ok := Read(line); !ok {
+		return line, false
+	}
+	return Rewrite(line, v, def, today)
+}
+
+// editFile replaces line (0-based) of the file at path with what edit
+// makes of it, keeping the file's line endings. edit reports false when
+// the line isn't a Task, and then nothing is written.
+func editFile(fsys FS, path string, line int, edit func(string) (string, bool)) error {
 	data, err := fsys.ReadFile(path)
 	if err != nil {
 		return err
@@ -60,7 +98,7 @@ func ToggleFile(fsys FS, path string, line int, def index.Format, today time.Tim
 	}
 	l := lines[line]
 	body := strings.TrimRight(l, "\r\n")
-	text, ok := Toggle(body, def, today)
+	text, ok := edit(body)
 	if !ok {
 		return fmt.Errorf("%s:%d: %w", path, line+1, ErrNotATask)
 	}

@@ -8,6 +8,8 @@ pholio opens a **Vault**, a plain folder of `.md` files, and gives you a file tr
 
 ![The Task List](docs/screenshots/task-list.png)
 
+![The Task Editor](docs/screenshots/task-editor.png)
+
 ## Install
 
 pholio runs on Linux and macOS; Windows is not supported.

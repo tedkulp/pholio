@@ -91,3 +91,12 @@ shot daily-note
 t send-keys -t s Space t
 wait_for "Upcoming"
 shot task-list
+
+# The Task Editor on today's "Book flights" Task (line 5).
+# Escape alone, so it isn't read as alt with the next key.
+t send-keys -t s Escape
+sleep 0.5
+t send-keys -t s : 5 Enter
+t send-keys -t s Space T
+wait_for "Edit Task"
+shot task-editor

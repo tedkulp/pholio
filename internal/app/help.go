@@ -26,7 +26,7 @@ var helpScopes = []helpScope{
 }
 
 // helpKeysW is the width of the keys column.
-const helpKeysW = 10
+const helpKeysW = 14
 
 // showHelp (spc ?) opens the help popup: one row per binding, which runs
 // it on enter, so it doubles as a command palette.

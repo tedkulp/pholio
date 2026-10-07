@@ -85,7 +85,7 @@ The editor is vim: counts, motions, `d`/`c`/`y`, text objects (including markdow
 | `spc ?` | help: every key, filterable; `enter` runs one | |
 | `enter` / `gd` | follow the Link under the cursor | |
 | `ctrl+o` / `tab` | jump back / forward | |
-| `ctrl+h` / `ctrl+l` | focus sidebar / editor | |
+| `ctrl+h` / `ctrl+l` | focus sidebar / editor (or `ctrl+shift+h` / `ctrl+shift+l`) | |
 | `F7` / `F8` | cycle theme / reload config and theme | |
 | `ctrl+q` / `spc q` | quit (asks if there are unsaved changes) | `:q` |
 

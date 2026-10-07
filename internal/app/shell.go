@@ -47,7 +47,7 @@ func (m Model) toggleSidebar() Model {
 	return m
 }
 
-// focusSidebar (ctrl+h) shows the sidebar if needed and focuses it.
+// focusSidebar (ctrl+h, ctrl+shift+h) shows the sidebar if needed and focuses it.
 func (m Model) focusSidebar() Model {
 	m.sideOn, m.focus = true, focusSidebar
 	return m

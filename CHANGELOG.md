@@ -4,6 +4,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `ctrl+shift+h` / `ctrl+shift+l` focus the sidebar / editor, like `ctrl+h` / `ctrl+l`, for multiplexers such as herdr that swallow those keys.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

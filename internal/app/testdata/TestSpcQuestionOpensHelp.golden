@@ -2,11 +2,11 @@
  ▸ da╭─ Help ─────────────────────────────────────────────────────────────╮     
  ▸ Pr│ > filter keys                                                      │     
  ▸ ze│ ────────────────────────────────────────────────────────────────── │     
-   a │ spc e     sidebar                                           leader │     
-   Be│ spc d     today                                             leader │     
-   no│ spc D     date                                              leader │     
-     │ spc b     backlinks                                         leader │     
-     │ spc /     search                                            leader │     
+   a │ spc e         sidebar                                       leader │     
+   Be│ spc d         today                                         leader │     
+   no│ spc D         date                                          leader │     
+     │ spc b         backlinks                                     leader │     
+     │ spc /         search                                        leader │     
      │ ↑/↓ move · enter choose · esc close                                │     
  NORM╰────────────────────────────────────────────────────────────────────╯ 1:1 
                                                                                 

@@ -53,11 +53,15 @@ func keys(m app.Model, ks ...tea.KeyPressMsg) app.Model {
 var (
 	ctrlH = tea.KeyPressMsg{Code: 'h', Mod: tea.ModCtrl}
 	ctrlL = tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl}
-	ctrlQ = tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
-	space = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
-	tab   = tea.KeyPressMsg{Code: tea.KeyTab}
-	esc   = tea.KeyPressMsg{Code: tea.KeyEsc}
-	enter = tea.KeyPressMsg{Code: tea.KeyEnter}
+	// ctrlShiftH and ctrlShiftL are what multiplexers that swallow ctrl+h/l
+	// (herdr) pass through instead.
+	ctrlShiftH = tea.KeyPressMsg{Code: 'h', Mod: tea.ModCtrl | tea.ModShift}
+	ctrlShiftL = tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl | tea.ModShift}
+	ctrlQ      = tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
+	space      = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	tab        = tea.KeyPressMsg{Code: tea.KeyTab}
+	esc        = tea.KeyPressMsg{Code: tea.KeyEsc}
+	enter      = tea.KeyPressMsg{Code: tea.KeyEnter}
 )
 
 // screen is the stripped view.
@@ -95,6 +99,27 @@ func TestCtrlHFocusesTheSidebarAndCtrlLReturns(t *testing.T) {
 	m = keys(m, ctrlL)
 	if c := m.View().Cursor; c == nil || c.X != 30 || c.Y != 0 {
 		t.Errorf("cursor = %+v, want the editor's at 30,0", c)
+	}
+}
+
+func TestCtrlShiftHAndLAlsoMoveFocus(t *testing.T) {
+	m := keys(shell(t, shellVault(), "/vault/a.md"), ctrlShiftH)
+	if m.View().Cursor != nil {
+		t.Error("ctrl+shift+h did not focus the sidebar")
+	}
+
+	m = keys(m, ctrlShiftL)
+	if m.View().Cursor == nil {
+		t.Error("ctrl+shift+l did not focus the editor")
+	}
+}
+
+func TestCtrlShiftHWaitsForNormalModeWithNothingPending(t *testing.T) {
+	for _, prefix := range []string{"i", "d"} {
+		m := keys(typeKeys(shell(t, shellVault(), "/vault/a.md"), prefix), ctrlShiftH)
+		if m.View().Cursor == nil {
+			t.Errorf("after %q: ctrl+shift+h focused the sidebar", prefix)
+		}
 	}
 }
 

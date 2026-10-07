@@ -14,14 +14,16 @@ func TestSpcQuestionOpensHelp(t *testing.T) {
 	golden.RequireEqual(t, screen(m))
 	got := m.PaletteRows()
 	for _, want := range []string{
-		" | spc d     today | leader",
-		" | spc ?     help | leader",
-		" | spc       leader key | global",
-		" | ctrl+h    focus sidebar | global",
-		" | [d        previous Daily Note | sequence",
-		" | gd        go to Link | normal",
-		" | r         rename | sidebar",
-		" | F7        cycle theme | app",
+		" | spc d         today | leader",
+		" | spc ?         help | leader",
+		" | spc           leader key | global",
+		" | ctrl+h        focus sidebar | global",
+		" | ctrl+shift+h  focus sidebar | global",
+		" | ctrl+shift+l  focus editor | global",
+		" | [d            previous Daily Note | sequence",
+		" | gd            go to Link | normal",
+		" | r             rename | sidebar",
+		" | F7            cycle theme | app",
 	} {
 		if !slices.Contains(got, want) {
 			t.Errorf("help lacks row %q; rows:\n%s", want, strings.Join(got, "\n"))

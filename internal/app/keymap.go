@@ -89,6 +89,9 @@ var bindings = []binding{
 	{scopeGlobal, " ", actLeader, "leader key"},
 	{scopeGlobal, "ctrl+h", actFocusSidebar, "focus sidebar"},
 	{scopeGlobal, "ctrl+l", actFocusEditor, "focus editor"},
+	// For multiplexers that swallow ctrl+h/l, such as herdr.
+	{scopeGlobal, "ctrl+shift+h", actFocusSidebar, "focus sidebar"},
+	{scopeGlobal, "ctrl+shift+l", actFocusEditor, "focus editor"},
 
 	{scopeLeader, "e", actToggleSidebar, "sidebar"},
 	{scopeLeader, "d", actToday, "today"},

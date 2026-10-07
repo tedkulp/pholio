@@ -259,8 +259,8 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	return maybeComplete(m.editorKey(msg))
 }
 
-// free reports whether global keys (the leader, ctrl+h/l) may fire: from
-// the sidebar, or in normal mode with nothing pending.
+// free reports whether global keys (the leader, ctrl+h/l, ctrl+shift+h/l)
+// may fire: from the sidebar, or in normal mode with nothing pending.
 func (m Model) free() bool { return m.sidebarFocused() || m.editorIdle() }
 
 // normalIdle reports whether the editor has focus in normal mode with

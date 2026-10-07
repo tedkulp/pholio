@@ -51,11 +51,15 @@ One markdown checkbox line (`- [ ]` / `- [x]`) anywhere in the Vault, along with
 _Avoid_: TODO item, todo, action item
 
 **Task Metadata**:
-`key:value` pairs and `#tags` written inline on a Task's line, such as `due:2026-10-10 pri:high #work`.
-_Avoid_: attributes, properties, fields
+Dates, a priority and `#tags` written inline on a Task's line, in a Task Format, such as `[due:: 2026-10-10] [priority:: high] #work` or `📅 2026-10-10 ⏫ #work`.
+_Avoid_: attributes, properties
+
+**Task Format**:
+The syntax a Task's Metadata is written in: `dataview` (`[due:: 2026-10-10]`) or `emoji` (`📅 2026-10-10`), the two formats of Obsidian's Tasks plugin. pholio reads both and writes new Metadata in the Vault's default format, unless the Task already uses the other one.
+_Avoid_: metadata style, task syntax
 
 **Task Status**:
-The state shown in a Task's checkbox: open `[ ]`, in progress `[/]` (still open), done `[x]`, or cancelled `[-]`. A done Task records the day it was finished as `done:YYYY-MM-DD`.
+The state shown in a Task's checkbox: open `[ ]`, in progress `[/]` (still open), done `[x]`, or cancelled `[-]`. A done Task records the day it was finished as its done date (`[completion:: YYYY-MM-DD]` or `✅ YYYY-MM-DD`).
 _Avoid_: state, completed (use "done")
 
 **Task List**:

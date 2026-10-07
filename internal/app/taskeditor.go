@@ -60,7 +60,11 @@ func (m Model) taskValues(rows []string) (v tasks.Values, bad []int) {
 	if v.Description == "" {
 		bad = append(bad, rowDescription)
 	}
-	v.Status = index.Status(max(0, slices.Index(statusNames, rows[rowStatus])))
+	for s := index.Open; s <= index.Cancelled; s++ {
+		if statusNames[s] == rows[rowStatus] {
+			v.Status = s
+		}
+	}
 	for row, to := range map[int]*string{rowDue: &v.Due, rowScheduled: &v.Scheduled, rowStart: &v.Start} {
 		s := strings.TrimSpace(rows[row])
 		if s == "" {

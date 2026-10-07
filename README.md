@@ -5,10 +5,13 @@ A terminal markdown editor for a folder of notes, with a vim-style editor built 
 pholio opens a **Vault**, a plain folder of `.md` files, and gives you a file tree, a modal editor, and the tools for a daily-notes workflow: Daily Notes, a Vault-wide Task List, `[[wikilinks]]` with Backlinks, and quick Zettel creation. There's no database. The index is rebuilt in memory on every start, and syntax stays Obsidian-compatible, so the same Vault opens fine in other tools.
 
 ![Today's Daily Note, with the sidebar](docs/screenshots/daily-note.png)
+*Today's Daily Note, with the Vault in the sidebar.*
 
 ![The Task List](docs/screenshots/task-list.png)
+*The Task List (`spc t`): every open Task in the Vault, grouped by due date.*
 
 ![The Task Editor](docs/screenshots/task-editor.png)
+*The Task Editor (`spc T`): edit a Task's description, Status, dates and priority.*
 
 ## Install
 

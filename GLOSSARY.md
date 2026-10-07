@@ -65,3 +65,7 @@ _Avoid_: state, completed (use "done")
 **Task List**:
 The single view that gathers every Task in the Vault.
 _Avoid_: master list, agenda, inbox
+
+**Task Editor**:
+The pop-up form that edits one Task's description, Task Status and Task Metadata, opened from the Task's line in a Note or from the Task List.
+_Avoid_: task dialog, task popup

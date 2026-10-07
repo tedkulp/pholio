@@ -17,7 +17,7 @@ func TestParseReadsNameTitleHeadingsAndTasks(t *testing.T) {
 		"- [ ] not a task in code\n" +
 		"# not a heading\n" +
 		"```\n" +
-		"  - [x] nested done:2026-10-01\n" +
+		"  - [x] nested [completion:: 2026-10-01]\n" +
 		"~~~~\n" +
 		"- [ ] still code\n" +
 		"~~~\n" +

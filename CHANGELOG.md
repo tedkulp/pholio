@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - `ctrl+shift+h` / `ctrl+shift+l` focus the sidebar / editor, like `ctrl+h` / `ctrl+l`, for multiplexers such as herdr that swallow those keys.
+- Task Metadata uses Obsidian Tasks' `dataview` (`[due:: 2026-10-10]`) and `emoji` (`📅 2026-10-10`) formats, read on every Task line. Priority has Obsidian's five levels and sort order.
+- `task_format` (`"dataview"` or `"emoji"`) picks the format pholio writes done dates in when a Task has no metadata yet.
+
+### Changed
+- pholio's own `due:`, `pri:` and `done:` words are no longer read as Task Metadata; they are plain text. Rewrite them as `[due:: …]`, `[priority:: …]` and `[completion:: …]`.
 
 ## [0.3.0] - 2026-10-06
 

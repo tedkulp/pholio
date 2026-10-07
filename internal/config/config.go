@@ -22,6 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/tedkulp/pholio/internal/dates"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
 )
 
@@ -51,6 +52,8 @@ type Config struct {
 	// NewNoteFolder is Vault-relative; "" is the Vault root.
 	NewNoteFolder string
 	TasksHeading  string
+	// TaskFormat is the Task Format new Task Metadata is written in.
+	TaskFormat index.Format
 }
 
 // Default returns the config used when no file sets anything.
@@ -66,6 +69,7 @@ func Default() Config {
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
 		TasksHeading:       "## Tasks",
+		TaskFormat:         index.Dataview,
 	}
 }
 
@@ -130,6 +134,7 @@ var vaultKeys = map[string]setter{
 	"zettel_folder":   str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
 	"new_note_folder": str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
 	"tasks_heading":   str(func(c *Config) *string { return &c.TasksHeading }, heading),
+	"task_format":     taskFormat,
 }
 
 func apply(fsys seam.FS, file string, cfg *Config, tables ...map[string]setter) []string {
@@ -270,4 +275,13 @@ func dayStart(c *Config, v any) string {
 	_, _ = fmt.Sscanf(m[1]+" "+m[2], "%d %d", &h, &mm)
 	c.DayStartsAt = time.Duration(h)*time.Hour + time.Duration(mm)*time.Minute
 	return ""
+}
+
+func taskFormat(c *Config, v any) string {
+	s, ok := v.(string)
+	if f := index.Format(s); ok && (f == index.Dataview || f == index.Emoji) {
+		c.TaskFormat = f
+		return ""
+	}
+	return `want "dataview" or "emoji", got ` + show(v)
 }

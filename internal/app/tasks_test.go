@@ -18,7 +18,7 @@ func taskVault(t *testing.T) (app.Model, string) {
 	t.Helper()
 	vault, d := dailyVault(t)
 	for name, text := range map[string]string{
-		"todo.md":  "- [ ] a\n- [x] b done:2026-10-01\n",
+		"todo.md":  "- [ ] a\n- [x] b ✅ 2026-10-01\n",
 		"other.md": "# Other\n- [ ] c\n",
 	} {
 		if err := os.WriteFile(filepath.Join(vault, name), []byte(text), 0o644); err != nil {
@@ -33,11 +33,11 @@ func TestMarkingATaskDoneStampsItWithToday(t *testing.T) {
 
 	m = typeKeys(m, "3lrx")
 
-	if want := "- [x] a done:2026-10-05\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [x] a [completion:: 2026-10-05]\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("buffer %q, want %q", m.Text(), want)
 	}
 	m = typeKeys(m, "u")
-	if want := "- [ ] a\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [ ] a\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("after u: %q, want %q", m.Text(), want)
 	}
 }
@@ -55,10 +55,10 @@ func TestReopeningATaskRemovesItsStamp(t *testing.T) {
 func TestLeavingInsertModeExpandsRelativeDates(t *testing.T) {
 	m, _ := taskVault(t)
 
-	m = typeKeys(m, "A due:tomorrow")
+	m = typeKeys(m, "A [due:: tomorrow]")
 	m = press(m, esc)
 
-	if want := "- [ ] a due:2026-10-06\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [ ] a [due:: 2026-10-06]\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("buffer %q, want %q", m.Text(), want)
 	}
 }
@@ -72,14 +72,14 @@ func TestToggleTaskInTheOpenNoteEditsTheBufferOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want := "- [x] a done:2026-10-05\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [x] a [completion:: 2026-10-05]\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("buffer %q, want %q", m.Text(), want)
 	}
-	if got := readFile(t, path); got != "- [ ] a\n- [x] b done:2026-10-01\n" {
+	if got := readFile(t, path); got != "- [ ] a\n- [x] b ✅ 2026-10-01\n" {
 		t.Errorf("file written: %q", got)
 	}
 	m = typeKeys(m, "u")
-	if want := "- [ ] a\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [ ] a\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("after u: %q, want %q", m.Text(), want)
 	}
 }
@@ -93,13 +93,35 @@ func TestToggleTaskInAnotherNoteWritesItsFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := readFile(t, path), "# Other\n- [x] c done:2026-10-05\n"; got != want {
+	if got, want := readFile(t, path), "# Other\n- [x] c [completion:: 2026-10-05]\n"; got != want {
 		t.Errorf("file %q, want %q", got, want)
 	}
-	if want := "- [ ] a\n- [x] b done:2026-10-01\n"; m.Text() != want {
+	if want := "- [ ] a\n- [x] b ✅ 2026-10-01\n"; m.Text() != want {
 		t.Errorf("open buffer changed: %q", m.Text())
 	}
 	if _, err := m.ToggleTask(path, 0); err == nil {
 		t.Error("toggling a heading succeeded")
+	}
+}
+
+func TestTheConfiguredTaskFormatIsWrittenOnALineWithoutMetadata(t *testing.T) {
+	vault, d := dailyVault(t)
+	cfg := filepath.Join(vault, ".pholio", "config.toml")
+	if err := os.WriteFile(cfg, []byte("day_starts_at = \"04:00\"\ntask_format = \"emoji\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(vault, "todo.md"), []byte("- [ ] a\n- [ ] b\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := start(t, vault, d, filepath.Join(vault, "todo.md"), beforeDawn)
+
+	m = typeKeys(m, "3lrx")
+	m, err := m.ToggleTask(filepath.Join(vault, "todo.md"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := "- [x] a ✅ 2026-10-05\n- [x] b ✅ 2026-10-05\n"; m.Text() != want {
+		t.Errorf("buffer %q, want %q", m.Text(), want)
 	}
 }

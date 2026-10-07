@@ -19,7 +19,7 @@ The Note for one calendar day, created from the daily Template the first time th
 _Avoid_: journal, diary entry
 
 **Today**:
-The current day as pholio counts it. It starts at the configured day-start hour, not necessarily at midnight, so 1am can still be yesterday. Every "today" (the Daily Note, Overdue, `done:` stamps) means this day.
+The current day as pholio counts it. It starts at the configured day-start hour, not necessarily at midnight, so 1am can still be yesterday. Every "today" (the Daily Note, Overdue, done dates) means this day.
 _Avoid_: current date, now
 
 **Zettel**:

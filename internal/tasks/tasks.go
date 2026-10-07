@@ -1,6 +1,8 @@
 // Package tasks holds the editing rules for Task lines: relative-date
-// expansion of due:/done: and the done: stamp that follows a change of Task
-// Status. It works on plain lines, so the editor and the Task List share it.
+// expansion of due and done dates, and the done date stamped when a Task's
+// Status changes. It works on plain lines, so the editor and the Task List
+// share it. Rules that write Task Metadata take the Vault's default Task
+// Format.
 package tasks
 
 import (
@@ -13,34 +15,30 @@ import (
 	"github.com/tedkulp/pholio/internal/index"
 )
 
-// dateMeta matches a due: or done: token: group 1 is the key with its colon,
-// group 2 the value.
-var dateMeta = regexp.MustCompile(`(?:^|[ \t])((?:due|done):)(\S+)`)
-
-// Expand rewrites relative due: and done: values on a Task line (today,
-// tomorrow, a weekday, +3d, +1w, ...) to ISO dates counted from today. Any
-// other line, and any value that isn't a date, is returned as it is.
+// Expand rewrites relative due and done dates on a Task line (today,
+// tomorrow, a weekday, +3d, +1w, ...), in either Task Format, to ISO dates
+// counted from today. Any other line, and any value that isn't a date, is
+// returned as it is.
 func Expand(line string, today time.Time) string {
 	if _, ok := index.ParseTask(line); !ok {
 		return line
 	}
-	ms := dateMeta.FindAllStringSubmatchIndex(line, -1)
-	for i := len(ms) - 1; i >= 0; i-- {
-		vs, ve := ms[i][4], ms[i][5]
-		v := line[vs:ve]
-		d, ok := dates.Parse(v, today)
+	fs := index.Fields(line)
+	for i := len(fs) - 1; i >= 0; i-- {
+		f := fs[i]
+		if !index.TakesRelativeDate(f.Key) {
+			continue
+		}
+		d, ok := dates.Parse(f.Value, today)
 		if !ok {
 			continue
 		}
-		if iso := d.Format(dates.ISO); iso != v {
-			line = line[:vs] + iso + line[ve:]
+		if iso := d.Format(dates.ISO); iso != f.Value {
+			line = line[:f.ValStart] + iso + line[f.ValEnd:]
 		}
 	}
 	return line
 }
-
-// doneMeta matches a done: token and the blanks before it.
-var doneMeta = regexp.MustCompile(`[ \t]+done:\S+`)
 
 // isDone reports whether line is a Task whose status is done.
 func isDone(line string) bool {
@@ -48,16 +46,16 @@ func isDone(line string) bool {
 	return ok && t.Status == index.Done
 }
 
-// Stamp applies the done: rule to a line that changed from old to changed.
-// When changed is a done Task and old wasn't, any done: value is replaced by
-// done:<today> at the end of the line. When old was a done Task and changed is
-// a Task that isn't done, its done: values are removed. Otherwise changed is
-// returned as it is.
-func Stamp(old, changed string, today time.Time) string {
+// Stamp applies the done-date rule to a line that changed from old to
+// changed. When changed is a done Task and old wasn't, it gets today's done
+// date (see MarkDone). When old was a done Task and changed is a Task that
+// isn't done, its done dates are removed. Otherwise changed is returned as
+// it is.
+func Stamp(old, changed string, def index.Format, today time.Time) string {
 	was, is := isDone(old), isDone(changed)
 	switch {
 	case is && !was:
-		return MarkDone(changed, today)
+		return MarkDone(changed, def, today)
 	case was && !is:
 		if _, ok := index.ParseTask(changed); ok {
 			return Unmark(changed)
@@ -73,16 +71,16 @@ type Fix struct {
 }
 
 // Fixup compares a buffer's lines before and after one change and returns
-// the line rewrites that the Task rules ask for: the done: stamp (see Stamp)
+// the line rewrites that the Task rules ask for: the done date (see Stamp)
 // on each Task whose status changed and, when expand is set, relative-date
 // expansion (see Expand) on each changed line. Lines outside the changed
 // region, and lines in fenced code, are never touched.
 //
 // A changed line is matched with its earlier self by its text with the
-// checkbox mark and done: values ignored, or, failing that, by position
+// checkbox mark and done dates ignored, or, failing that, by position
 // when the change kept the line count. A line with no earlier self (such as
 // a newly typed Task) gets no stamp.
-func Fixup(before, after []string, expand bool, today time.Time) []Fix {
+func Fixup(before, after []string, expand bool, def index.Format, today time.Time) []Fix {
 	p := 0
 	for p < len(before) && p < len(after) && before[p] == after[p] {
 		p++
@@ -131,7 +129,7 @@ func Fixup(before, after []string, expand bool, today time.Time) []Fix {
 			text = Expand(text, today)
 		}
 		if j := paired[i]; j >= 0 {
-			text = Stamp(olds[j], text, today)
+			text = Stamp(olds[j], text, def, today)
 		}
 		if text != n {
 			fixes = append(fixes, Fix{Line: p + i, Text: text})
@@ -140,7 +138,7 @@ func Fixup(before, after []string, expand bool, today time.Time) []Fix {
 	return fixes
 }
 
-// key is a Task line with its mark and done: values blanked out, so a Task
+// key is a Task line with its mark and done dates blanked out, so a Task
 // matches itself across a change of status. ok is false for other lines.
 func key(line string) (string, bool) {
 	t, ok := index.ParseTask(line)
@@ -159,9 +157,10 @@ func checkbox(line string, t index.Task) int {
 }
 
 // Toggle flips a Task line between done and open: a done Task becomes
-// "[ ]" and loses its done: stamp, and any other Task becomes "[x]" with
-// done:<today>. ok is false, and line is returned, when it isn't a Task.
-func Toggle(line string, today time.Time) (string, bool) {
+// "[ ]" and loses its done date, and any other Task becomes "[x]" with
+// today's (see MarkDone). ok is false, and line is returned, when it isn't
+// a Task.
+func Toggle(line string, def index.Format, today time.Time) (string, bool) {
 	t, ok := index.ParseTask(line)
 	if !ok {
 		return line, false
@@ -172,17 +171,42 @@ func Toggle(line string, today time.Time) (string, bool) {
 		mark = " "
 	}
 	toggled := line[:at] + mark + rest
-	return Stamp(line, toggled, today), true
+	return Stamp(line, toggled, def, today), true
 }
 
-// MarkDone puts done:<today> at the end of line, replacing any done: value
-// already there. It doesn't change the checkbox.
-func MarkDone(line string, today time.Time) string {
-	return strings.TrimRight(Unmark(line), " \t") + " done:" + today.Format(dates.ISO)
+// blockID matches a trailing block ID ("^abc123") and the blanks around it.
+var blockID = regexp.MustCompile(`[ \t]+\^[A-Za-z0-9-]+[ \t]*$`)
+
+// MarkDone puts today's done date at the end of line, before a trailing
+// block ID, replacing any done date already there. It is written in the
+// format of the line's first Task Metadata field, or def when there is
+// none. It doesn't change the checkbox.
+func MarkDone(line string, def index.Format, today time.Time) string {
+	if fs := index.Fields(line); len(fs) > 0 {
+		def = fs[0].Format
+	}
+	date := today.Format(dates.ISO)
+	field := "[completion:: " + date + "]"
+	if def == index.Emoji {
+		field = "✅ " + date
+	}
+	line = Unmark(line)
+	id := ""
+	if loc := blockID.FindStringIndex(line); loc != nil {
+		line, id = line[:loc[0]], strings.TrimRight(line[loc[0]:], " \t")
+	}
+	return strings.TrimRight(line, " \t") + " " + field + id
 }
 
-// Unmark removes the done: values from line. It doesn't change the
-// checkbox.
+// Unmark removes the done dates, in either Task Format, from line, with the
+// blanks before them. It doesn't change the checkbox.
 func Unmark(line string) string {
-	return doneMeta.ReplaceAllString(line, "")
+	fs := index.Fields(line)
+	for i := len(fs) - 1; i >= 0; i-- {
+		if f := fs[i]; f.Key == "completion" {
+			start := len(strings.TrimRight(line[:f.Start], " \t"))
+			line = line[:start] + line[f.End:]
+		}
+	}
+	return line
 }

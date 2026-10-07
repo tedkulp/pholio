@@ -3,18 +3,18 @@
  ▸ project│ > / filter: text, #tag, file                                                 │          
  ▸ templat│ ──────────────────────────────────────────────────────────────────────────── │          
    inbox  │ Overdue (2)                                                                  │          
-          │ [ ] pay rent due:2026-10-01 pri:high                              inbox.md:3 │          
-          │ [ ] renew passport due:2026-10-01                                 inbox.md:2 │          
+          │ [ ] pay rent [due:: 2026-10-01] [priority:: high]                 inbox.md:3 │          
+          │ [ ] renew passport [due:: 2026-10-01]                             inbox.md:2 │          
           │                                                                              │          
           │ Today (1)                                                                    │          
-          │ [ ] call the bank due:2026-10-05 pri:high #money       daily/2026-10-05.md:5 │          
+          │ [ ] call the bank [due:: 2026-10-05] [priority:: high… daily/2026-10-05.md:5 │          
           │                                                                              │          
           │ Upcoming (2)                                                                 │          
-          │ [/] write report due:2026-10-07 #work                  daily/2026-10-05.md:7 │          
-          │ [ ] book dentist due:2026-10-09 pri:low                           inbox.md:4 │          
+          │ [/] write report 📅 2026-10-07 #work                   daily/2026-10-05.md:7 │          
+          │ [ ] book dentist 📅 2026-10-09 🔽                                 inbox.md:4 │          
           │                                                                              │          
           │ No date (3)                                                                  │          
-          │ [ ] fix bike pri:med                                              inbox.md:5 │          
+          │ [ ] fix bike [priority:: medium]                                  inbox.md:5 │          
           │ space toggle · enter open · a add · D all done · / filter · esc close        │          
           ╰──────────────────────────────────────────────────────────────────────────────╯          
                              │~                                                                     

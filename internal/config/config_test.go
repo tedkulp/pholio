@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/tedkulp/pholio/internal/config"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam/seamtest"
 )
 
@@ -28,6 +29,7 @@ func defaults() config.Config {
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
 		TasksHeading:       "## Tasks",
+		TaskFormat:         index.Dataview,
 	}
 }
 
@@ -66,11 +68,12 @@ daily_subfolder = "YYYY/MM"
 zettel_folder = "z"
 new_note_folder = "inbox"
 tasks_heading = "### Todo"
+task_format = "emoji"
 `,
 			want: func(c *config.Config) {
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
-				c.DailySubfolder = "YYYY/MM"
+				c.DailySubfolder, c.TaskFormat = "YYYY/MM", index.Emoji
 			},
 		},
 		{
@@ -107,6 +110,7 @@ tasks_heading = "### Todo"
 daily_folder = "/abs"
 zettel_folder = "../out"
 tasks_heading = "Tasks"
+task_format = "bogus"
 `,
 			want: func(c *config.Config) { c.Conceal = false },
 			problems: []string{
@@ -114,6 +118,7 @@ tasks_heading = "Tasks"
 				userPath + `: theme: want a string, got 3`,
 				vaultPath + `: daily_folder: want a folder inside the Vault, got "/abs"`,
 				vaultPath + `: day_starts_at: want "HH:MM", got "25:00"`,
+				vaultPath + `: task_format: want "dataview" or "emoji", got "bogus"`,
 				vaultPath + `: tasks_heading: want a markdown heading like "## Tasks", got "Tasks"`,
 				vaultPath + `: zettel_folder: want a folder inside the Vault, got "../out"`,
 			},

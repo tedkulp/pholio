@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/tedkulp/pholio/internal/engine"
+	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/theme"
 )
 
@@ -55,7 +56,6 @@ var (
 	reStrike = regexp.MustCompile(`~~([^~]+)~~`)
 	reItalic = regexp.MustCompile(`(?:^|[^*\w])([*_])([^*_\s][^*_]*)([*_])`)
 	reTag    = regexp.MustCompile(`(?:^|\s)(#[\p{L}\d_/-]+)`)
-	reMeta   = regexp.MustCompile(`(?:^|\s)([a-z]+:[^\s:]+)`)
 	reHead   = regexp.MustCompile(`^(#{1,6})\s`)
 	reList   = regexp.MustCompile(`^(\s*)([-*+]|\d+[.)])\s+(\[([ xX/-])\](?:\s|$))?`)
 	reQuote  = regexp.MustCompile(`^\s*>`)
@@ -173,9 +173,9 @@ func highlight(l string, inFence bool) (ks []kind, hidden []bool) {
 		}
 	}
 	if task {
-		for _, m := range reMeta.FindAllStringSubmatchIndex(l, -1) {
-			if free(m[2], m[3]) {
-				fill(m[2], m[3], kMeta)
+		for _, f := range index.Fields(l) {
+			if free(f.Start, f.End) {
+				fill(f.Start, f.End, kMeta)
 			}
 		}
 	}

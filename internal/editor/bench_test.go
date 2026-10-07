@@ -10,7 +10,7 @@ func bigNote() string {
 	para := "A paragraph line that is long enough to wrap at least once in an eighty column pane, with [[links]] and **bold**.\n"
 	var sb strings.Builder
 	for i := 0; i < 5000; i++ {
-		sb.WriteString("## Heading\n- [ ] a task due:2026-10-10\n")
+		sb.WriteString("## Heading\n- [ ] a task [due:: 2026-10-10]\n")
 		sb.WriteString(para)
 		sb.WriteString("\n")
 	}

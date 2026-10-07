@@ -26,7 +26,7 @@ func TestTasksGathersEveryTaskInTheVault(t *testing.T) {
 		"daily/2026-10-05.md:5 [x] water plants",
 		"daily/2026-10-05.md:6 [/] write report",
 		"daily/2026-10-05.md:7 [-] cancelled trip",
-		"projects/garden.md:2 [ ] plan beds",
+		"projects/garden.md:2 [ ] plan beds owner:ted",
 		"projects/garden.md:3 [ ] buy seeds",
 		"projects/garden.md:4 [X] pick tomato variety",
 	}
@@ -35,7 +35,7 @@ func TestTasksGathersEveryTaskInTheVault(t *testing.T) {
 		t.Errorf("Tasks()\n got %q\nwant %q", taskRows(got), want)
 	}
 	first := got[0]
-	if first.Status != index.Open || first.Meta["due"] != "2026-10-05" || first.Meta["pri"] != "high" ||
+	if first.Status != index.Open || first.Meta["due"] != "2026-10-05" || first.Pri() != "high" ||
 		!reflect.DeepEqual(first.Tags, []string{"money"}) {
 		t.Errorf("first Task = %+v", first)
 	}

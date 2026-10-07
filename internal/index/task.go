@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -34,9 +35,11 @@ type Task struct {
 	Mark rune
 	// Text is everything after the checkbox, metadata and tags included.
 	Text string
-	// Summary is Text with the key:value and #tag tokens removed.
+	// Summary is Text with the Task Metadata fields and #tags removed.
 	Summary string
-	// Meta holds the key:value pairs; nil when there are none.
+	// Meta holds the Task Metadata, keyed by Dataview name ("due",
+	// "completion", "priority", ...); nil when there is none. A priority is
+	// its level name. The first field of a key wins.
 	Meta map[string]string
 	// Tags holds the #tags without the '#'; nil when there are none.
 	Tags []string
@@ -109,18 +112,22 @@ func statusOf(mark rune) Status {
 }
 
 func parseMeta(t *Task) {
-	words := strings.Fields(t.Text)
-	kept := words[:0:0]
-	for _, w := range words {
+	text := []byte(t.Text)
+	for _, f := range Fields(t.Text) {
+		if t.Meta == nil {
+			t.Meta = map[string]string{}
+		}
+		if _, seen := t.Meta[f.Key]; !seen {
+			t.Meta[f.Key] = f.Value
+		}
+		for i := f.Start; i < f.End; i++ {
+			text[i] = ' '
+		}
+	}
+	var kept []string
+	for _, w := range strings.Fields(string(text)) {
 		if tag, ok := parseTag(w); ok {
 			t.Tags = append(t.Tags, tag)
-			continue
-		}
-		if k, v, ok := parseKeyValue(w); ok {
-			if t.Meta == nil {
-				t.Meta = map[string]string{}
-			}
-			t.Meta[k] = v
 			continue
 		}
 		kept = append(kept, w)
@@ -151,30 +158,17 @@ func isTagRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' || r == '/'
 }
 
-// parseKeyValue accepts "key:value" where key starts with a letter and holds
-// letters, digits, '_' or '-'. A value starting with "/" is left alone so
-// URLs such as https://x.io stay text.
-func parseKeyValue(w string) (k, v string, ok bool) {
-	k, v, found := strings.Cut(w, ":")
-	if !found || k == "" || v == "" || v[0] == '/' {
-		return "", "", false
-	}
-	for i, r := range k {
-		if i == 0 && !unicode.IsLetter(r) {
-			return "", "", false
-		}
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
-			return "", "", false
-		}
-	}
-	return k, v, true
-}
-
-// Due is the due: date as written (YYYY-MM-DD), or "".
+// Due is the due date as written (YYYY-MM-DD), or "".
 func (t Task) Due() string { return t.Meta["due"] }
 
-// Pri is the pri: value lower-cased ("high", "med", "low"), or "".
-func (t Task) Pri() string { return strings.ToLower(t.Meta["pri"]) }
+// Pri is the priority level ("highest", "high", "medium", "low" or
+// "lowest"), or "".
+func (t Task) Pri() string {
+	if p := t.Meta["priority"]; slices.Contains(priorities, p) {
+		return p
+	}
+	return ""
+}
 
-// DoneOn is the done: date stamped when the Task was completed, or "".
-func (t Task) DoneOn() string { return t.Meta["done"] }
+// DoneOn is the done date stamped when the Task was done, or "".
+func (t Task) DoneOn() string { return t.Meta["completion"] }

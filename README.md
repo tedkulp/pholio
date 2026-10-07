@@ -96,15 +96,26 @@ In the sidebar, `a` adds a Note (end the name with `/` for a folder), `r` rename
 A Task is any `- [ ]` checkbox outside code blocks and `templates/`:
 
 ```markdown
-- [ ] Call the bank due:fri pri:high #money
-- [/] Draft the report due:+3d
-- [x] Renew passport done:2026-10-01
+- [ ] Call the bank [due:: fri] [priority:: high] #money
+- [/] Draft the report [due:: +3d]
+- [x] Renew passport [completion:: 2026-10-01]
 - [-] Cancelled idea
 ```
 
-`[ ]` and `[/]` are open, `[x]` is done, `[-]` is cancelled. When you leave insert mode, relative `due:` dates like `fri` or `+3d` are rewritten as ISO dates. Checking a Task off appends `done:<today>`, and unchecking removes it.
+`[ ]` and `[/]` are open, `[x]` is done, `[-]` is cancelled.
 
-The Task List (`spc t`) groups open Tasks into Overdue, Today, Upcoming and No date. In it, `space` toggles, `enter` jumps to the line, `a` adds a Task to today's Daily Note, `D` shows all done and cancelled Tasks, and `/` filters by text, `#tag` or file.
+Task Metadata uses the two formats of Obsidian's Tasks plugin, so a Vault reads the same in both apps. pholio reads both, even mixed on one line:
+
+| | `dataview` (default) | `emoji` |
+|---|---|---|
+| due | `[due:: 2026-10-10]` | `📅 2026-10-10` |
+| done | `[completion:: 2026-10-10]` | `✅ 2026-10-10` |
+| priority | `[priority:: high]` | `🔺` highest, `⏫` high, `🔼` medium, `🔽` low, `⏬` lowest |
+| scheduled, start, created, cancelled | `[scheduled:: …]`, `[start:: …]`, `[created:: …]`, `[cancelled:: …]` | `⏳`, `🛫`, `➕`, `❌` |
+
+Dataview fields may also use `(due:: …)`. When you leave insert mode, relative due and done dates like `fri` or `+3d` are rewritten as ISO dates. Checking a Task off appends today's done date (before a trailing `^block-id`), and unchecking removes it. pholio writes it in the format of the line's first field, or `task_format` if the line has none.
+
+The Task List (`spc t`) groups open Tasks into Overdue, Today, Upcoming and No date, and sorts each group by due date, then priority (highest, high, medium, none, low, lowest). In it, `space` toggles, `enter` jumps to the line, `a` adds a Task to today's Daily Note, `D` shows all done and cancelled Tasks, and `/` filters by text, `#tag` or file.
 
 ## Configuration
 
@@ -132,6 +143,7 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `zettel_folder` | `"zettel"` |
 | `new_note_folder` | `""` (the Vault root) |
 | `tasks_heading` | `"## Tasks"` (where the Task List's `a` adds Tasks) |
+| `task_format` | `"dataview"` (or `"emoji"`: the Task Format pholio writes done dates in) |
 
 Daily templates can use `{{date}}`, `{{date:FMT}}`, `{{time}}`, `{{time:FMT}}`, `{{title}}`, `{{yesterday}}` and `{{tomorrow}}`, with moment-style formats such as `{{date:dddd, MMMM D}}`.
 

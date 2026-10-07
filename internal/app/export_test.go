@@ -44,6 +44,18 @@ func (m Model) PaletteSelected() string {
 	return it.Text
 }
 
+// PaletteSlots are the theme slots of the open palette's visible rows.
+func (m Model) PaletteSlots() []string {
+	if m.overlay == nil {
+		return nil
+	}
+	var out []string
+	for _, it := range m.overlay.p.Visible() {
+		out = append(out, string(it.Slot))
+	}
+	return out
+}
+
 // PaletteRows are the open palette's visible rows as "group | text |
 // detail", or nil when no palette is open.
 func (m Model) PaletteRows() []string {

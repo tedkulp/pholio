@@ -149,7 +149,7 @@ func (m Model) taskRows(v taskView) []palette.Item {
 		slices.SortFunc(ts, compareTasks)
 		for _, t := range ts {
 			slot := g.slot
-			if t.Pri() == "high" && t.Status.IsOpen() && g != groupOverdue {
+			if p := t.Pri(); (p == "highest" || p == "high") && t.Status.IsOpen() && g != groupOverdue {
 				slot = theme.TasksPriHigh
 			}
 			items = append(items, palette.Item{
@@ -189,8 +189,8 @@ func groupOf(t index.Task, today time.Time, all bool) (taskGroup, bool) {
 	return groupUpcoming, true
 }
 
-// compareTasks orders Tasks by due date (undated last), then pri (high,
-// med, low, none), then file and line.
+// compareTasks orders Tasks by due date (undated last), then priority
+// (see priRank), then file and line.
 func compareTasks(a, b index.Task) int {
 	da, db := a.Due(), b.Due()
 	if (da == "") != (db == "") {
@@ -207,14 +207,20 @@ func compareTasks(a, b index.Task) int {
 	)
 }
 
+// priRank is t's place in Obsidian's priority order: highest, high,
+// medium, none, low, lowest.
 func priRank(t index.Task) int {
 	switch t.Pri() {
-	case "high":
+	case "highest":
 		return 0
-	case "med":
+	case "high":
 		return 1
-	case "low":
+	case "medium":
 		return 2
+	case "low":
+		return 4
+	case "lowest":
+		return 5
 	}
 	return 3
 }
@@ -238,11 +244,17 @@ func taskMatches(t index.Task, query string) bool {
 	return true
 }
 
+// taskPlaceholder is the add prompt's example Task, in each Task Format.
+var taskPlaceholder = map[index.Format]string{
+	index.Dataview: "text  [due:: tomorrow] [priority:: high] #tag",
+	index.Emoji:    "text  📅 tomorrow ⏫ #tag",
+}
+
 // promptTask (a) asks for a new Task's text. Either way it returns to the
 // Task List.
 func (m Model) promptTask(v taskView) Model {
 	p := palette.New("Add Task to today's Daily Note", palette.Type).
-		WithPlaceholder("text  due:tomorrow pri:high #tag").
+		WithPlaceholder(taskPlaceholder[m.config().TaskFormat]).
 		WithHint("enter add · esc back")
 	return m.showPalette(p, func(m Model, ev palette.Event) (Model, tea.Cmd) {
 		if ev.Kind == palette.Chosen && strings.TrimSpace(ev.Query) != "" {

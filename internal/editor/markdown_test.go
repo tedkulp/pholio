@@ -14,7 +14,7 @@ import (
 const marked = "# Notes\n" +
 	"See [[Other note]] and **bold** text.\n" +
 	"Run `go test` or read [the docs](https://example.com).\n" +
-	"- [ ] call **Bob** due:2026-10-10 #work\n"
+	"- [ ] call **Bob** [due:: 2026-10-10] #work\n"
 
 func TestConcealHidesMarkupOffTheCursorLine(t *testing.T) {
 	m := open(marked, 40, 6)
@@ -57,7 +57,7 @@ func TestHighlightingDrawsThroughMarkdownSlots(t *testing.T) {
 	text := "# Title here\n" +
 		"plain **bold** and *it* with `code` and [[Link]] #tag\n" +
 		"> quoted\n" +
-		"- [ ] open task due:2026-10-10\n" +
+		"- [ ] open task [due:: 2026-10-10] 📅 2026-10-11 due:2026-10-12\n" +
 		"- [x] done task\n" +
 		"- [-] cancelled task\n" +
 		"1. numbered\n"
@@ -79,7 +79,8 @@ func TestHighlightingDrawsThroughMarkdownSlots(t *testing.T) {
 		{theme.MarkdownQuote, " quoted"},
 		{theme.MarkdownBullet, "-"},
 		{theme.MarkdownTaskBox, "[ ]"},
-		{theme.MarkdownMeta, "due:2026-10-10"},
+		{theme.MarkdownMeta, "[due:: 2026-10-10]"},
+		{theme.MarkdownMeta, "📅 2026-10-11"},
 		{theme.MarkdownTaskDone, "[x] done task"},
 		{theme.MarkdownTaskDone, "[-] cancelled task"},
 		{theme.MarkdownBullet, "1."},
@@ -88,6 +89,9 @@ func TestHighlightingDrawsThroughMarkdownSlots(t *testing.T) {
 		if !strings.Contains(view, styled(c.slot, c.text)) {
 			t.Errorf("%q is not drawn with %s", c.text, c.slot)
 		}
+	}
+	if strings.Contains(view, styled(theme.MarkdownMeta, "due:2026-10-12")) {
+		t.Error("key:value text is drawn as Task Metadata")
 	}
 }
 

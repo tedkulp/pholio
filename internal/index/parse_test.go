@@ -14,16 +14,16 @@ func TestParseTaskReadsStatusTextMetadataAndTags(t *testing.T) {
 	}{
 		{"- [ ] buy milk", index.Task{Status: index.Open, Mark: ' ', Text: "buy milk", Summary: "buy milk"}},
 		{"  * [/] half done", index.Task{Status: index.InProgress, Mark: '/', Text: "half done", Summary: "half done", Indent: 2}},
-		{"+ [x] shipped done:2026-10-01", index.Task{Status: index.Done, Mark: 'x', Text: "shipped done:2026-10-01", Summary: "shipped",
-			Meta: map[string]string{"done": "2026-10-01"}}},
+		{"+ [x] shipped [completion:: 2026-10-01]", index.Task{Status: index.Done, Mark: 'x', Text: "shipped [completion:: 2026-10-01]", Summary: "shipped",
+			Meta: map[string]string{"completion": "2026-10-01"}}},
 		{"1. [X] numbered", index.Task{Status: index.Done, Mark: 'X', Text: "numbered", Summary: "numbered"}},
 		{"- [-] dropped", index.Task{Status: index.Cancelled, Mark: '-', Text: "dropped", Summary: "dropped"}},
 		{"- [?] odd mark", index.Task{Status: index.Open, Mark: '?', Text: "odd mark", Summary: "odd mark"}},
-		{"\t- [ ] call bob due:2026-10-10 pri:high #work #home/ops see https://x.io", index.Task{
+		{"\t- [ ] call bob [due:: 2026-10-10] ⏫ #work #home/ops see https://x.io", index.Task{
 			Status: index.Open, Mark: ' ', Indent: 1,
-			Text:    "call bob due:2026-10-10 pri:high #work #home/ops see https://x.io",
+			Text:    "call bob [due:: 2026-10-10] ⏫ #work #home/ops see https://x.io",
 			Summary: "call bob see https://x.io",
-			Meta:    map[string]string{"due": "2026-10-10", "pri": "high"},
+			Meta:    map[string]string{"due": "2026-10-10", "priority": "high"},
 			Tags:    []string{"work", "home/ops"},
 		}},
 		{"- [ ]", index.Task{Status: index.Open, Mark: ' '}},

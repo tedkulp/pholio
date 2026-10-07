@@ -3,7 +3,7 @@
 Search over a personal notes folder, no server.
 
 ## Next
-- [ ] Benchmark a 20k-note Vault due:@D+2@ #alpha
+- [ ] Benchmark a 20k-note Vault 📅 @D+2@ #alpha
 - [ ] Write up the indexing ADR #alpha
 - [ ] Ask Priya for sample data
 

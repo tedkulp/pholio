@@ -1,0 +1,3 @@
+[tools]
+# Match the version CI runs (.github/workflows/ci.yml).
+golangci-lint = "2.14.0"

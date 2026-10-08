@@ -66,7 +66,7 @@ func TestMultiLineCommentColoursEveryLine(t *testing.T) {
 }
 
 func TestUnknownOrMissingLanguageIsFlatCode(t *testing.T) {
-	for _, open := range []string{"```", "```notalang", "~~~"} {
+	for _, open := range []string{"```", "```notalang", "~~~", "```h"} {
 		_, ks := kindsOf(open + "\nfunc main() { \"hi\" }\n```\n")
 		for j, k := range ks[1] {
 			if k != kCode {
@@ -77,7 +77,7 @@ func TestUnknownOrMissingLanguageIsFlatCode(t *testing.T) {
 }
 
 func TestLanguageByNameOrAliasAndInfoStringExtras(t *testing.T) {
-	for _, open := range []string{"```py", "```python", "~~~ python", "```py title=\"x\""} {
+	for _, open := range []string{"```py", "```python", "```Python", "~~~ python", "```py title=\"x\""} {
 		lines, ks := kindsOf(open + "\ndef f(): pass\n```\n")
 		if k := kindAt(t, lines, ks, 1, "def"); k != kKeyword {
 			t.Errorf("%s: def kind %d, want keyword", open, k)

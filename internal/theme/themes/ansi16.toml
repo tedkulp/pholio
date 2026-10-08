@@ -26,7 +26,7 @@ status_dirty = { fg = "11", bg = "8", bold = true }
 keyword          = { fg = "mauve" }
 string           = { fg = "green" }
 comment          = { fg = "muted", italic = true }
-number           = { fg = "peach" }
-type             = { fg = "yellow" }
+number           = { fg = "red" }
+type             = { fg = "teal" }
 function         = { fg = "accent" }
-operator         = { fg = "teal" }
+operator         = { fg = "subtext" }

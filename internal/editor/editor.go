@@ -33,7 +33,7 @@ type Model struct {
 	conceal bool
 	// fence is the fence pass over the buffer, rerun only when the buffer
 	// version changes. Like lays, it is shared between copies of the Model.
-	fence **fencePass
+	fence *fenceCache
 	// lays caches the layouts of lines other than the cursor's. It is
 	// shared between copies of the Model, like the engine.
 	lays *layCache
@@ -45,7 +45,7 @@ type Model struct {
 // New makes a pane over e, showing name on the status line. Wrap and
 // conceal are on.
 func New(e *engine.Engine, name string) Model {
-	m := Model{e: e, name: name, wrap: true, conceal: true, lays: &layCache{}, fence: new(*fencePass)}
+	m := Model{e: e, name: name, wrap: true, conceal: true, lays: &layCache{}, fence: &fenceCache{}}
 	m.refence()
 	return m
 }
@@ -54,16 +54,15 @@ func New(e *engine.Engine, name string) Model {
 // Engine buffer versions are unique across buffers, so a reload is caught
 // too.
 func (m *Model) refence() *fencePass {
-	f := *m.fence
-	if f == nil || f.ver != m.e.Buf.Version() {
+	c := m.fence
+	if c.pass == nil || c.pass.ver != m.e.Buf.Version() {
 		var memo lexMemo
-		if f != nil {
-			memo = f.memo
+		if c.pass != nil {
+			memo = c.pass.memo
 		}
-		f = newFencePass(m.e.Buf, memo)
-		*m.fence = f
+		c.pass = newFencePass(m.e.Buf, memo)
 	}
-	return f
+	return c.pass
 }
 
 // Engine is the engine the pane edits.

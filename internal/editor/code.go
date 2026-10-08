@@ -36,6 +36,9 @@ type fencePass struct {
 	memo   lexMemo
 }
 
+// fenceCache holds the latest fence pass, shared between copies of a Model.
+type fenceCache struct{ pass *fencePass }
+
 // lexMemo keeps lexed blocks by language and text across buffer versions,
 // so an edit relexes only the block it changed.
 type lexMemo map[string][][]kind
@@ -106,7 +109,7 @@ func (f *fencePass) lex(b *engine.Buffer, blk *fenceBlock) [][]kind {
 	if blk.lang == "" {
 		return nil
 	}
-	lexer := lexers.Get(blk.lang)
+	lexer := lexerFor(blk.lang)
 	if lexer == nil {
 		return nil
 	}
@@ -147,6 +150,22 @@ func (f *fencePass) lex(b *engine.Buffer, blk *fenceBlock) [][]kind {
 	}
 	f.memo[key] = ks
 	return ks
+}
+
+// lexerFor is the lexer named lang, by name or alias, ignoring case.
+// lexers.Get also matches file names and extensions, which is guessing.
+func lexerFor(lang string) chroma.Lexer {
+	lexer := lexers.Get(lang)
+	if lexer == nil {
+		return nil
+	}
+	cfg := lexer.Config()
+	for _, n := range append([]string{cfg.Name}, cfg.Aliases...) {
+		if strings.EqualFold(n, lang) {
+			return lexer
+		}
+	}
+	return nil
 }
 
 // tokenKind maps a chroma token to the code kind it draws as.

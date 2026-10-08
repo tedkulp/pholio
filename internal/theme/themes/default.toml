@@ -80,9 +80,9 @@ keyword          = { fg = "mauve" }
 string           = { fg = "green" }
 comment          = { fg = "muted", italic = true }
 number           = { fg = "peach" }
-type             = { fg = "yellow" }
+type             = { fg = "teal" }
 function         = { fg = "accent" }
-operator         = { fg = "teal" }
+operator         = { fg = "subtext" }
 
 # ---- Task List ----
 [tasks]

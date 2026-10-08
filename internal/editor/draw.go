@@ -40,21 +40,12 @@ func paletteFor(th theme.Theme) *palette {
 // selection wins over search matches.
 func (m *Model) looks(i int) func(col int) overlay {
 	matches := m.e.Matches(i)
-	a, z, linewise, ok := m.e.Selection()
-	sel := ok && a.Line <= i && i <= z.Line
+	from, to, sel := m.e.SelectedRange(i)
 	if !sel && matches == nil {
 		return func(int) overlay { return plain }
 	}
-	from, to := 0, len(m.e.Buf.Line(i))
-	if to == 0 { // an empty line's one cell stands for its newline
+	if m.e.Buf.Line(i) == "" { // an empty line's one cell stands for its newline
 		to = 1
-	} else if sel && !linewise {
-		if i == a.Line {
-			from = a.Col
-		}
-		if i == z.Line {
-			to = z.Col
-		}
 	}
 	return func(col int) overlay {
 		if sel && from <= col && col < to {

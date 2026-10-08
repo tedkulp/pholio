@@ -41,6 +41,7 @@ func (e *Engine) Load(path string) error {
 	e.Buf = NewBuffer(string(text))
 	e.Path, e.Mode = path, Normal
 	e.undo, e.redo, e.pending, e.keys, e.recording = nil, nil, nil, nil, false
+	e.blockIns = nil
 	e.changes++
 	e.baseID = e.changes // a fresh base: no older change id matches it
 	e.MarkSaved()

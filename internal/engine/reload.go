@@ -20,7 +20,7 @@ func (e *Engine) Replace(text string) {
 
 func (e *Engine) replace(text string) {
 	e.commit()
-	e.Mode, e.keys, e.recording = Normal, nil, false
+	e.Mode, e.keys, e.recording, e.blockIns = Normal, nil, false, nil
 	old := strings.TrimSuffix(e.Buf.String(), "\n")
 	buf := NewBuffer(text)
 	if s := strings.TrimSuffix(buf.String(), "\n"); s != old {

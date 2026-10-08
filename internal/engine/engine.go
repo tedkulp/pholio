@@ -17,16 +17,17 @@ const (
 	Insert
 	Visual
 	VisualLine
+	VisualBlock
 	Command // the ":" line
 	Search  // the "/" or "?" line
 )
 
 func (m Mode) String() string {
-	return [...]string{"NORMAL", "INSERT", "VISUAL", "V-LINE", "COMMAND", "SEARCH"}[m]
+	return [...]string{"NORMAL", "INSERT", "VISUAL", "V-LINE", "V-BLOCK", "COMMAND", "SEARCH"}[m]
 }
 
-// visual reports whether m is Visual or VisualLine.
-func (m Mode) visual() bool { return m == Visual || m == VisualLine }
+// visual reports whether m is one of the visual modes.
+func (m Mode) visual() bool { return m == Visual || m == VisualLine || m == VisualBlock }
 
 // Engine is one editing session over a Buffer.
 type Engine struct {
@@ -59,7 +60,8 @@ type Engine struct {
 
 	want     int // remembered display column (cells) for j/k; -1 = end of line
 	keptWant bool
-	anchor   Pos // the fixed end of a visual selection
+	anchor   Pos          // the fixed end of a visual selection
+	blockIns *blockInsert // the insert session started from a block, if any
 	cmd      cmdlineState
 	search   searchState
 	lastFind string // last f/t/F/T and its char, such as "f;"

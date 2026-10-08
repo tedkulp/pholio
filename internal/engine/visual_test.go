@@ -36,20 +36,31 @@ func TestVisualOperators(t *testing.T) {
 }
 
 func TestVisualSelection(t *testing.T) {
-	e := load("a|bc\ndef")
-	if _, _, _, ok := e.Selection(); ok {
+	e := load("a|bc\ndef\n\nx")
+	if _, _, ok := e.SelectedRange(0); ok {
 		t.Fatal("selection outside visual mode")
 	}
-	feed(e, "vj")
-	a, z, lw, ok := e.Selection()
-	if !ok || lw || a != (Pos{0, 1}) || z != (Pos{1, 2}) {
-		t.Errorf("Selection = %v %v %v %v", a, z, lw, ok)
+	feed(e, "vjj")
+	type r struct {
+		from, to int
+		ok       bool
 	}
+	check := func(want []r) {
+		t.Helper()
+		for i, w := range want {
+			from, to, ok := e.SelectedRange(i)
+			if (r{from, to, ok}) != w {
+				t.Errorf("%v line %d: %d %d %v, want %+v", e.Mode, i, from, to, ok, w)
+			}
+		}
+	}
+	check([]r{{1, 3, true}, {0, 3, true}, {0, 0, true}, {0, 0, false}})
 	if e.Mode != Visual || e.Mode.String() != "VISUAL" {
 		t.Errorf("mode %v", e.Mode)
 	}
 	feed(e, "V")
-	if _, _, lw, _ := e.Selection(); !lw || e.Mode.String() != "V-LINE" {
-		t.Errorf("V-LINE: linewise %v mode %v", lw, e.Mode)
+	check([]r{{0, 3, true}, {0, 3, true}, {0, 0, true}, {0, 0, false}})
+	if e.Mode.String() != "V-LINE" {
+		t.Errorf("mode %v", e.Mode)
 	}
 }

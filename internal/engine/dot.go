@@ -20,13 +20,15 @@ type visualDot struct {
 	name     string // the visual command, such as "d" or ">"
 	linewise bool
 	lines    int // lines the selection spans
-	size     int // graphemes on a one-line selection, else the cell column it ends at
+	width    int // graphemes, when the selection is on one line
+	endCell  int // the cell column it ends at, when it spans lines
 }
 
 // visualShape measures the selection for a change command run from
-// charwise or linewise visual mode. ok is false for anything else.
+// charwise or linewise visual mode. ok is false for anything else,
+// including every blockwise command.
 func (e *Engine) visualShape(name string) (v visualDot, ok bool) {
-	if !visualChanges[name] {
+	if !visualChanges[name] || e.Mode == VisualBlock {
 		return v, false
 	}
 	a, z, lw := e.selection()
@@ -34,10 +36,10 @@ func (e *Engine) visualShape(name string) (v visualDot, ok bool) {
 	l := e.line(z.Line)
 	if v.lines == 1 {
 		for c := a.Col; c < z.Col; c = nextG(l, c) {
-			v.size++
+			v.width++
 		}
 	} else {
-		v.size = Cells(l, prevG(l, z.Col))
+		v.endCell = Cells(l, prevG(l, z.Col))
 	}
 	return v, true
 }
@@ -62,11 +64,11 @@ func (e *Engine) repeatVisual() {
 	switch {
 	case v.linewise:
 	case v.lines == 1:
-		for i := 1; i < v.size && nextG(l, z.Col) < len(l); i++ {
+		for i := 1; i < v.width && nextG(l, z.Col) < len(l); i++ {
 			z.Col = nextG(l, z.Col)
 		}
 	default:
-		z.Col = min(colAtCells(l, v.size), lastG(l))
+		z.Col = min(colAtCells(l, v.endCell), lastG(l))
 	}
 	e.Mode, e.anchor, e.Cur = Visual, a, z
 	if v.linewise {

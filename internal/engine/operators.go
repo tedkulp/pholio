@@ -6,10 +6,12 @@ import (
 	"unicode"
 )
 
-// register holds yanked or deleted text.
+// register holds yanked or deleted text. A blockwise register has rows,
+// one per line of the block, and text is them joined by newlines.
 type register struct {
 	text     string
 	linewise bool
+	rows     []string
 }
 
 func (e *Engine) applyOp(p parsed) {
@@ -112,14 +114,9 @@ func (e *Engine) operate(op string, reg rune, a, z Pos, linewise bool) {
 	} else {
 		text = e.Buf.slice(a, z)
 	}
-	r := register{text, linewise}
-	e.regs['"'] = r
-	if reg != 0 {
-		e.regs[reg] = r
-	}
+	e.store(register{text: text, linewise: linewise}, reg, op == "y")
 	switch op {
 	case "y":
-		e.regs['0'] = r
 		if n := strings.Count(text, "\n"); linewise && n > 2 {
 			e.Msg = strconv.Itoa(n) + " lines yanked"
 		}
@@ -147,6 +144,18 @@ func (e *Engine) operate(op string, reg rune, a, z Pos, linewise bool) {
 	}
 }
 
+// store puts r in the unnamed register and in reg, if one was given. A
+// yank also goes in register 0.
+func (e *Engine) store(r register, reg rune, yank bool) {
+	e.regs['"'] = r
+	if reg != 0 {
+		e.regs[reg] = r
+	}
+	if yank {
+		e.regs['0'] = r
+	}
+}
+
 // deleteLines removes lines a..z, including their line breaks.
 func (e *Engine) deleteLines(a, z int) {
 	switch {
@@ -168,6 +177,10 @@ func (e *Engine) paste(p parsed, after bool) {
 	r, ok := e.regs[reg]
 	if !ok {
 		e.Msg = "E353: Nothing in register " + string(reg)
+		return
+	}
+	if r.rows != nil {
+		e.pasteBlock(r.rows, max(p.count, 1), after)
 		return
 	}
 	text := strings.Repeat(r.text, max(p.count, 1))

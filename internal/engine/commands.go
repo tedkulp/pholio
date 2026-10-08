@@ -79,6 +79,7 @@ func init() {
 		"esc":    func(*Engine, parsed) {},
 		"v":      func(e *Engine, _ parsed) { e.Mode, e.anchor = Visual, e.Cur },
 		"V":      func(e *Engine, _ parsed) { e.Mode, e.anchor = VisualLine, e.Cur },
+		"ctrl+v": func(e *Engine, _ parsed) { e.Mode, e.anchor = VisualBlock, e.Cur },
 		":":      func(e *Engine, _ parsed) { e.startCmdline(Command, false) },
 		"/":      func(e *Engine, _ parsed) { e.startCmdline(Search, false) },
 		"?":      func(e *Engine, _ parsed) { e.startCmdline(Search, true) },

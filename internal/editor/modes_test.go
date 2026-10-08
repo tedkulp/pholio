@@ -42,6 +42,45 @@ func TestVisualLineSelectsWholeLines(t *testing.T) {
 	}
 }
 
+func TestBlockSelectionCoversOnlyTheBlocksCells(t *testing.T) {
+	m := feed(open("abcd\nabcd\nx\nabcd\n", 10, 5), "l<ctrl+v>jjjl")
+
+	view, _ := m.View(th)
+
+	visual := th.Style(theme.MarkdownVisual).Inherit(th.Style(theme.UIBase))
+	plain := th.Style(theme.UIBase)
+	rows := strings.Split(view, "\n")
+	for _, i := range []int{0, 1, 3} {
+		if want := plain.Render("a") + visual.Render("bc") + plain.Render("d"); !strings.HasPrefix(rows[i], want) {
+			t.Errorf("row %d: block not drawn on cells 1-2:\n%q", i, rows[i])
+		}
+	}
+	if strings.Contains(rows[2], visual.Render(" ")) || strings.Contains(rows[2], visual.Render("x")) {
+		t.Errorf("short line drawn selected: %q", rows[2])
+	}
+	if got := ansi.Strip(m.StatusLine(th, 30)); !strings.HasPrefix(got, " V-BLOCK ") {
+		t.Errorf("status line = %q", got)
+	}
+	if !strings.Contains(m.StatusLine(th, 30), th.Style(theme.UIModeVisual).Render(" V-BLOCK ")) {
+		t.Error("mode not drawn with ui.mode_visual")
+	}
+}
+
+func TestSearchMatchesShowOutsideABlock(t *testing.T) {
+	m := feed(open("dog dog\ndog dog\n", 10, 3), "/dog<enter>gg<ctrl+v>jll")
+
+	view, _ := m.View(th)
+
+	visual := th.Style(theme.MarkdownVisual).Inherit(th.Style(theme.UIBase))
+	search := th.Style(theme.MarkdownSearch).Inherit(th.Style(theme.UIBase))
+	if n := strings.Count(view, visual.Render("dog")); n != 2 {
+		t.Errorf("%d blocks rows drawn as visual, want 2:\n%q", n, view)
+	}
+	if n := strings.Count(view, search.Render("dog")); n != 2 {
+		t.Errorf("%d matches drawn as search, want 2:\n%q", n, view)
+	}
+}
+
 func TestEmptyLinesInASelectionShowOneSelectedCell(t *testing.T) {
 	visual := th.Style(theme.MarkdownVisual).Inherit(th.Style(theme.UIBase))
 	for _, keys := range []string{"Vjj", "vjj"} {

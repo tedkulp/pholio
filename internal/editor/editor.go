@@ -306,7 +306,7 @@ func (m Model) StatusLine(th theme.Theme, w int) string {
 	switch m.e.Mode {
 	case engine.Insert:
 		modeSlot = theme.UIModeInsert
-	case engine.Visual, engine.VisualLine:
+	case engine.Visual, engine.VisualLine, engine.VisualBlock:
 		modeSlot = theme.UIModeVisual
 	case engine.Command, engine.Search:
 		modeSlot = theme.UIModeCommand

@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `>` and `<` indent and outdent lines by one tab: `>>`, `<<`, with a count or a motion (`>j`, `>ip`), and on a visual selection.
 - `.` repeats a change made from visual mode (`d`, `c`, `>`, `<`, `~`, `J`) on a selection of the same size, starting at the cursor.
+- Blockwise visual mode: `ctrl+v` selects a block of columns, measured in display cells. `d`, `y`, `c`, `>`, `<`, `~`, `J`, `I` and `A` act on it, `$` extends it to the end of every line, and a yanked block pastes back as a block with `p`/`P`.
 - Fenced code blocks are syntax-coloured by the language on the opening fence (```` ```go ````, ```` ~~~ python ````), through the new `[code]` theme slots. A block with no language, or one pholio doesn't know, stays in `markdown.code`.
 
 ## [0.4.0] - 2026-10-07

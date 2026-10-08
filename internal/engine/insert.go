@@ -46,7 +46,9 @@ func (e *Engine) insertKey(k string) {
 	case "esc", "ctrl+c", "ctrl+[":
 		e.Mode = Normal
 		e.recording = false
-		e.Cur.Col = prevG(line, e.Cur.Col)
+		if !e.endBlockInsert(k) {
+			e.Cur.Col = prevG(line, e.Cur.Col)
+		}
 	case "enter":
 		e.insertEnter(line)
 	case "backspace", "ctrl+h":

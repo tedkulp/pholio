@@ -35,6 +35,7 @@ func key(k string) tea.KeyPressMsg {
 		"backspace": {Code: tea.KeyBackspace},
 		"ctrl+d":    {Code: 'd', Mod: tea.ModCtrl},
 		"ctrl+f":    {Code: 'f', Mod: tea.ModCtrl},
+		"ctrl+v":    {Code: 'v', Mod: tea.ModCtrl},
 		"alt+x":     {Code: 'x', Mod: tea.ModAlt},
 	}
 	msg, ok := names[k]

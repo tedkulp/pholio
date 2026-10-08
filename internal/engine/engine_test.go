@@ -5,13 +5,18 @@ import (
 	"testing"
 )
 
-// keys splits "dw<esc>ihi<enter>" into Feed-able key names.
+// keys splits "dw<esc>ihi<enter>" into Feed-able key names. <lt> and <gt>
+// are the literal < and > keys.
 func keys(s string) []string {
 	var out []string
 	for s != "" {
 		if s[0] == '<' {
 			if i := strings.IndexByte(s, '>'); i > 0 {
-				out = append(out, s[1:i])
+				k := s[1:i]
+				if lit, ok := map[string]string{"lt": "<", "gt": ">"}[k]; ok {
+					k = lit
+				}
+				out = append(out, k)
 				s = s[i+1:]
 				continue
 			}

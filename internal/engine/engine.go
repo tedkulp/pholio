@@ -106,7 +106,7 @@ func (e *Engine) SetCursor(p Pos) {
 // PendingKeys is the normal-mode command typed so far, such as `"a2d`.
 func (e *Engine) PendingKeys() string { return strings.Join(e.keys, "") }
 
-// OperatorPending is true while d, c or y waits for its motion or object.
+// OperatorPending is true while an operator (d, c, y, >, <) waits for its motion or object.
 func (e *Engine) OperatorPending() bool {
 	p, st := parse(e.keys, e.Mode.visual())
 	return st == incomplete && p.op != ""

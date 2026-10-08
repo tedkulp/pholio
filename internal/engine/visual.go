@@ -43,12 +43,23 @@ func visualOp(o string) func(e *Engine, p parsed) {
 	}
 }
 
+// visualShift indents (>) or outdents (<) every line the selection touches.
+func visualShift(right bool) func(e *Engine, p parsed) {
+	return func(e *Engine, _ parsed) {
+		a, z, _, _ := e.Selection()
+		e.Mode = Normal
+		e.cmdStart = a
+		e.shift(a.Line, z.Line, right)
+	}
+}
+
 var visualCmds map[string]func(e *Engine, p parsed)
 
 func init() {
 	visualCmds = map[string]func(e *Engine, p parsed){
 		"d": visualOp("d"), "x": visualOp("d"), "delete": visualOp("d"),
 		"c": visualOp("c"), "s": visualOp("c"), "y": visualOp("y"),
+		">": visualShift(true), "<": visualShift(false),
 		"o":   func(e *Engine, _ parsed) { e.anchor, e.Cur = e.Cur, e.anchor },
 		"esc": func(e *Engine, _ parsed) { e.Mode = Normal },
 		"v":   func(e *Engine, _ parsed) { e.toggleVisual(Visual) },

@@ -4,6 +4,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `>` and `<` indent and outdent lines by one tab: `>>`, `<<`, with a count or a motion (`>j`, `>ip`), and on a visual selection.
+
 ## [0.4.0] - 2026-10-07
 
 ### Added

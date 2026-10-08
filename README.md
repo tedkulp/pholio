@@ -72,7 +72,7 @@ vault = "~/notes"
 
 ## Keys
 
-The editor is vim: counts, motions, `d`/`c`/`y`, text objects (including markdown `i*` and `i_`), visual modes, undo/redo, `.`, `/` search, and `:w :q :wq :q! :e :e!`. There are no macros or `:s`.
+The editor is vim: counts, motions, `d`/`c`/`y`, `>`/`<` (one tab per level), text objects (including markdown `i*` and `i_`), visual modes, undo/redo, `.`, `/` search, and `:w :q :wq :q! :e :e!`. There are no macros or `:s`.
 
 | Key | Action | Command |
 |---|---|---|

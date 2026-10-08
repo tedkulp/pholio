@@ -47,7 +47,30 @@ func (e *Engine) applyOp(p parsed) {
 		}
 		a, z, lw = e.motionRange(from, to, k)
 	}
+	if p.op == ">" || p.op == "<" {
+		e.shift(a.Line, z.Line, p.op == ">")
+		return
+	}
 	e.operate(p.op, p.reg, a, z, lw)
+}
+
+// shift indents (>) or outdents (<) lines a..z by one tab, vim style: >
+// skips blank lines, and < takes one leading tab, or else up to TabStop
+// leading spaces. The cursor goes to the first non-blank of line a.
+func (e *Engine) shift(a, z int, right bool) {
+	for i := a; i <= z; i++ {
+		l := e.line(i)
+		switch {
+		case right && !isBlankLine(l):
+			e.ins(Pos{i, 0}, "\t")
+		case !right && strings.HasPrefix(l, "\t"):
+			e.del(Pos{i, 0}, Pos{i, 1})
+		case !right:
+			n := len(l) - len(strings.TrimLeft(l, " "))
+			e.del(Pos{i, 0}, Pos{i, min(n, TabStop)})
+		}
+	}
+	e.Cur = Pos{a, firstNonBlank(e.line(a))}
 }
 
 // wordEndStop is the target of a single e, except that it does not move when

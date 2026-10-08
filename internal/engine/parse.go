@@ -21,8 +21,8 @@ const (
 type parsed struct {
 	reg   rune     // register from "x, or 0
 	count int      // product of both counts; 0 means none was given
-	op    string   // "d", "c", "y" or ""
-	name  string   // motion, text object ("iw"), command, or "line" for dd/cc/yy
+	op    string   // "d", "c", "y", ">", "<" or ""
+	name  string   // motion, text object ("iw"), command, or "line" for dd/cc/yy/>>/<<
 	arg   string   // the literal after f t F T r
 	rest  []string // the keys without the leading register and count, for "."
 }
@@ -33,7 +33,7 @@ var argKeys = map[string]bool{"f": true, "F": true, "t": true, "T": true, "r": t
 // searchKeys start a "/" or "?" line; after an operator they are its motion.
 var searchKeys = map[string]bool{"/": true, "?": true}
 
-var operators = map[string]bool{"d": true, "c": true, "y": true}
+var operators = map[string]bool{"d": true, "c": true, "y": true, ">": true, "<": true}
 
 func digit(k string) (int, bool) {
 	if len(k) == 1 && k[0] >= '0' && k[0] <= '9' {

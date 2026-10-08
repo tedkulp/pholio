@@ -18,3 +18,13 @@ peach    = "#fe640b"
 
 [overlay]
 backdrop = { fg = "surface" }
+
+# ---- syntax in fenced code blocks; other tokens use markdown.code ----
+[code]
+keyword          = { fg = "mauve" }
+string           = { fg = "green" }
+comment          = { fg = "muted", italic = true }
+number           = { fg = "peach" }
+type             = { fg = "yellow" }
+function         = { fg = "accent" }
+operator         = { fg = "teal" }

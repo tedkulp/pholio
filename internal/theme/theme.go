@@ -1,5 +1,6 @@
 // Package theme loads pholio's TOML themes: a [palette] of named colours
-// plus style slots in the ui, sidebar, overlay, markdown and tasks sections.
+// plus style slots in the ui, sidebar, overlay, markdown, code and tasks
+// sections.
 // The default, light and ansi16 themes are embedded; user themes live in
 // <config home>/pholio/themes/*.toml. A partial theme falls back to the
 // default theme slot by slot.
@@ -192,14 +193,16 @@ type file struct {
 	Sidebar  map[string]styleDef `toml:"sidebar"`
 	Overlay  map[string]styleDef `toml:"overlay"`
 	Markdown map[string]styleDef `toml:"markdown"`
+	Code     map[string]styleDef `toml:"code"`
 	Tasks    map[string]styleDef `toml:"tasks"`
 }
 
-var sectionNames = []string{"ui", "sidebar", "overlay", "markdown", "tasks"}
+var sectionNames = []string{"ui", "sidebar", "overlay", "markdown", "code", "tasks"}
 
 func (f *file) sections() map[string]map[string]styleDef {
 	return map[string]map[string]styleDef{
-		"ui": f.UI, "sidebar": f.Sidebar, "overlay": f.Overlay, "markdown": f.Markdown, "tasks": f.Tasks,
+		"ui": f.UI, "sidebar": f.Sidebar, "overlay": f.Overlay, "markdown": f.Markdown, "code": f.Code,
+		"tasks": f.Tasks,
 	}
 }
 

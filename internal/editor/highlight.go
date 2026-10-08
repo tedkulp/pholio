@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tedkulp/pholio/internal/engine"
 	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/theme"
 )
@@ -28,6 +27,14 @@ const (
 	kTaskDone
 	kTag
 	kMeta
+	// Syntax kinds inside fenced code blocks with a known language.
+	kKeyword
+	kString
+	kComment
+	kNumber
+	kType
+	kFunction
+	kOperator
 	kinds
 )
 
@@ -46,6 +53,13 @@ var kindSlots = [kinds]theme.Slot{
 	kTaskDone: theme.MarkdownTaskDone,
 	kTag:      theme.MarkdownTag,
 	kMeta:     theme.MarkdownMeta,
+	kKeyword:  theme.CodeKeyword,
+	kString:   theme.CodeString,
+	kComment:  theme.CodeComment,
+	kNumber:   theme.CodeNumber,
+	kType:     theme.CodeType,
+	kFunction: theme.CodeFunction,
+	kOperator: theme.CodeOperator,
 }
 
 var (
@@ -67,25 +81,10 @@ func isFence(l string) bool {
 	return strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")
 }
 
-// fences reports, per line, whether it is a fence line or inside a fenced
-// code block: the only state markdown highlighting carries across lines.
-func fences(b *engine.Buffer) []bool {
-	st := make([]bool, b.LineCount())
-	in := false
-	for i := range st {
-		if isFence(b.Line(i)) {
-			st[i] = true
-			in = !in
-			continue
-		}
-		st[i] = in
-	}
-	return st
-}
-
 // highlight gives the kind of every byte of line l and which bytes conceal
-// hides. inFence is true for fence lines and the lines between them.
-func highlight(l string, inFence bool) (ks []kind, hidden []bool) {
+// hides. f says whether l is a fence line or inside a fenced code block,
+// and gives a code line's syntax kinds.
+func highlight(l string, f fenceLine) (ks []kind, hidden []bool) {
 	ks = make([]kind, len(l))
 	hidden = make([]bool, len(l))
 	fill := func(a, z int, k kind) {
@@ -100,10 +99,13 @@ func highlight(l string, inFence bool) (ks []kind, hidden []bool) {
 		}
 	}
 	switch {
-	case inFence && isFence(l), reHR.MatchString(l):
+	case f.in && isFence(l), reHR.MatchString(l):
 		fill(0, len(l), kMarker)
 		return
-	case inFence:
+	case f.in && f.code != nil:
+		copy(ks, f.code)
+		return
+	case f.in:
 		fill(0, len(l), kCode)
 		return
 	}

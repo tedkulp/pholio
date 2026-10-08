@@ -193,3 +193,23 @@ func TestBoldInsideStrikethroughIsBold(t *testing.T) {
 		t.Errorf("y is not drawn bold:\n%q", view)
 	}
 }
+
+func TestFencedCodeIsColouredThroughCodeSlots(t *testing.T) {
+	m := open("x\n```go\nfunc f() { return \"hi\" } // x\n```\n", 50, 6)
+
+	view, _ := m.View(th)
+
+	for _, c := range []struct {
+		slot theme.Slot
+		text string
+	}{
+		{theme.CodeKeyword, "func"},
+		{theme.CodeString, `"hi"`},
+		{theme.CodeComment, "// x"},
+		{theme.MarkdownMarker, "```go"},
+	} {
+		if !strings.Contains(view, styled(c.slot, c.text)) {
+			t.Errorf("%q not drawn through %s:\n%q", c.text, c.slot, view)
+		}
+	}
+}

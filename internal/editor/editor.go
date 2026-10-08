@@ -31,11 +31,9 @@ type Model struct {
 	wrap bool
 	// conceal hides markdown syntax on every line but the cursor's.
 	conceal bool
-	// fence is the fence pass over the buffer: fence[i] is true when line
-	// i is a fence or inside a fenced code block. fenceVer is the buffer
-	// version it was computed for; the pass reruns only when that changes.
-	fence    []bool
-	fenceVer uint64
+	// fence is the fence pass over the buffer, rerun only when the buffer
+	// version changes. Like lays, it is shared between copies of the Model.
+	fence **fencePass
 	// lays caches the layouts of lines other than the cursor's. It is
 	// shared between copies of the Model, like the engine.
 	lays *layCache
@@ -47,7 +45,7 @@ type Model struct {
 // New makes a pane over e, showing name on the status line. Wrap and
 // conceal are on.
 func New(e *engine.Engine, name string) Model {
-	m := Model{e: e, name: name, wrap: true, conceal: true, lays: &layCache{}}
+	m := Model{e: e, name: name, wrap: true, conceal: true, lays: &layCache{}, fence: new(*fencePass)}
 	m.refence()
 	return m
 }
@@ -55,10 +53,17 @@ func New(e *engine.Engine, name string) Model {
 // refence reruns the fence pass when the buffer changed since the last one.
 // Engine buffer versions are unique across buffers, so a reload is caught
 // too.
-func (m *Model) refence() {
-	if v := m.e.Buf.Version(); m.fence == nil || v != m.fenceVer {
-		m.fence, m.fenceVer = fences(m.e.Buf), v
+func (m *Model) refence() *fencePass {
+	f := *m.fence
+	if f == nil || f.ver != m.e.Buf.Version() {
+		var memo lexMemo
+		if f != nil {
+			memo = f.memo
+		}
+		f = newFencePass(m.e.Buf, memo)
+		*m.fence = f
 	}
+	return f
 }
 
 // Engine is the engine the pane edits.
@@ -153,10 +158,10 @@ func (m *Model) lay(i int) layout {
 
 // layLine lays out line i without the cache.
 func (m *Model) layLine(i int) layout {
-	m.refence()
+	f := m.refence()
 	l := m.e.Buf.Line(i)
 	cur := m.e.Cur
-	ks, hidden := highlight(l, i < len(m.fence) && m.fence[i])
+	ks, hidden := highlight(l, f.line(m.e.Buf, i))
 	if !m.conceal || i == cur.Line {
 		hidden = nil
 	}

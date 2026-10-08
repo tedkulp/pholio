@@ -65,6 +65,17 @@ const (
 	MarkdownVisual   Slot = "markdown.visual"
 )
 
+// Syntax colours inside fenced code blocks.
+const (
+	CodeKeyword  Slot = "code.keyword"
+	CodeString   Slot = "code.string"
+	CodeComment  Slot = "code.comment"
+	CodeNumber   Slot = "code.number"
+	CodeType     Slot = "code.type"
+	CodeFunction Slot = "code.function"
+	CodeOperator Slot = "code.operator"
+)
+
 // Task List.
 const (
 	TasksOverdue  Slot = "tasks.overdue"

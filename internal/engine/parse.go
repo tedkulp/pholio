@@ -169,7 +169,11 @@ func (e *Engine) normalKey() {
 		e.applyOp(p)
 		e.setDot(p)
 	case visual && visualCmds[p.name] != nil:
+		v, change := e.visualShape(p.name)
 		visualCmds[p.name](e, p)
+		if change {
+			e.setVisualDot(p, v)
+		}
 	case visual && isObject(p.name):
 		e.selectObject(p.name)
 	case motions[p.name] != nil:

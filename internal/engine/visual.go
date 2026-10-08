@@ -6,9 +6,14 @@ func (e *Engine) Selection() (a, z Pos, linewise, ok bool) {
 	if !e.Mode.visual() {
 		return
 	}
+	a, z, linewise = e.selection()
+	return a, z, linewise, true
+}
+
+func (e *Engine) selection() (a, z Pos, linewise bool) {
 	a, z = order(e.anchor, e.Cur)
 	z.Col = nextG(e.line(z.Line), z.Col)
-	return a, z, e.Mode == VisualLine, true
+	return a, z, e.Mode == VisualLine
 }
 
 // selectObject makes a text object the selection, as viw does.
@@ -54,6 +59,12 @@ func visualShift(right bool) func(e *Engine, p parsed) {
 }
 
 var visualCmds map[string]func(e *Engine, p parsed)
+
+// visualChanges are the visual commands that "." repeats.
+var visualChanges = map[string]bool{
+	"d": true, "x": true, "delete": true, "c": true, "s": true,
+	">": true, "<": true, "~": true, "J": true,
+}
 
 func init() {
 	visualCmds = map[string]func(e *Engine, p parsed){

@@ -24,3 +24,31 @@ func TestDotRepeat(t *testing.T) {
 		{"dot list continuation", "|- a", "ob<esc>.", "- a\n- b\n- |b"},
 	})
 }
+
+func TestDotRepeatVisual(t *testing.T) {
+	runTable(t, []tcase{
+		{"V> then j.", "|a\nb\nc\nd", "Vj<gt>j.", "\ta\n\t\t|b\n\tc\nd"},
+		{"Vd", "|a\nb\nc\nd\ne", "Vjd.", "|e"},
+		{"vd one line", "|abcdef", "vld.", "|ef"},
+		{"vc replays the insert", "|foo bar baz", "vecX<esc>w.", "X |X baz"},
+		{"v~", "|abcdef", "vl~l.", "A|bCdef"},
+		{"VJ", "|a\nb\nc\nd", "VjJ.", "a b| c\nd"},
+		{"V<", "|\t\ta\n\t\tb", "V<lt>.", "|a\n\t\tb"},
+		{"vy is not a change", "|a b c\nx", "dwVjy.", "|c\nx"},
+		{"v across lines keeps the end column", "ab|c\ndef\nghi\njkl", "vjhdj.", "abf\ngh|l"},
+		{"clamped to the buffer", "|a\nb\nc\nd\ne", "Vjjdj.", "|d"},
+		{"clamped to the line", "|abcdef\nxy", "v3ldj.", "ef\n|"},
+		{"register reused", "|a\nb\nc", `V"ad."aP`, "|b\nc"},
+		{"count ignored", "|a\nb\nc\nd", "Vd3.", "|c\nd"},
+		{"undo visual dot", "|a\nb\nc\nd\ne", "Vjd.u", "|c\nd\ne"},
+		{"normal change after replaces it", "|abcdef", "vldx.", "|ef"},
+	})
+}
+
+func TestDotRepeatVisualEndsInNormalMode(t *testing.T) {
+	e := load("|abcdef")
+	feed(e, "vld.")
+	if e.Mode != Normal {
+		t.Errorf("mode %v after visual dot", e.Mode)
+	}
+}

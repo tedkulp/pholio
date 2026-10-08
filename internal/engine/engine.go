@@ -71,7 +71,8 @@ type Engine struct {
 	dot       []string // the last change's keys, without register and count
 	dotCount  int
 	dotReg    rune
-	recording bool // still appending insert-mode keys to dot
+	dotVis    *visualDot // set when the last change was made from visual mode
+	recording bool       // still appending insert-mode keys to dot
 	replaying bool
 
 	regs map[rune]register

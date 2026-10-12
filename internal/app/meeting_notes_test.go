@@ -318,3 +318,71 @@ func TestACRLFTemplateFrontmatterGetsTheMeetingUID(t *testing.T) {
 		t.Errorf("Meeting Note =\n%q\nwant\n%q", got, want)
 	}
 }
+
+const monthSubfolderConfig = "meetings_subfolder = \"YYYY/MM\"\n"
+
+func TestMeetingsSubfolderNestsANewMeetingNote(t *testing.T) {
+	m, fsys := meetingNotesVault(t, map[string]string{
+		"/vault/.pholio/config.toml": monthSubfolderConfig,
+		reviewDaily:                  "## Meetings\n",
+	})
+
+	m = press(openMeetings(t, m), enter)
+
+	if want := "/vault/meetings/2026/10/2026-10-12-1400-design-review.md"; m.Path() != want {
+		t.Errorf("opened %s, want %s", m.Path(), want)
+	}
+	if got, want := fileText(t, fsys, reviewDaily), "## Meetings\n- 14:00 [[2026-10-12-1400-design-review]]\n"; got != want {
+		t.Errorf("Daily Note = %q, want %q", got, want)
+	}
+}
+
+func TestMeetingsSubfolderFilesByTheMeetingsOwnDate(t *testing.T) {
+	m, _ := meetingNotesVaultWith(t, vevent("late@example.test", "Late call", 0, 30, 30), map[string]string{
+		"/vault/.pholio/config.toml": "day_starts_at = \"04:00\"\nmeetings_subfolder = \"YYYY/MM/DD\"\n",
+	})
+
+	m = press(openMeetings(t, m), enter)
+
+	if want := "/vault/meetings/2026/10/12/2026-10-12-0030-late-call.md"; m.Path() != want {
+		t.Errorf("opened %s, want %s", m.Path(), want)
+	}
+}
+
+func TestMeetingsSubfolderNamesCollideAcrossTheMeetingsFolder(t *testing.T) {
+	m, _ := meetingNotesVault(t, map[string]string{
+		"/vault/.pholio/config.toml": monthSubfolderConfig,
+		reviewNote:                   "# another Meeting\n",
+	})
+
+	m = press(openMeetings(t, m), enter)
+
+	if want := "/vault/meetings/2026/10/2026-10-12-1400-design-review-2.md"; m.Path() != want {
+		t.Errorf("opened %s, want %s", m.Path(), want)
+	}
+}
+
+func TestMeetingsSubfolderReopensAMeetingNoteInAnotherFolder(t *testing.T) {
+	existing := "/vault/meetings/notes-from-review.md"
+	m, _ := meetingNotesVault(t, map[string]string{
+		"/vault/.pholio/config.toml": monthSubfolderConfig,
+		existing:                     "---\nmeeting_uid: \"" + reviewUID + "\"\n---\n# Review\n",
+	})
+
+	if m = press(openMeetings(t, m), enter); m.Path() != existing {
+		t.Errorf("opened %s, want %s", m.Path(), existing)
+	}
+}
+
+func TestMeetingsSubfolderIgnoresHiddenFolders(t *testing.T) {
+	m, _ := meetingNotesVault(t, map[string]string{
+		"/vault/.pholio/config.toml":                              monthSubfolderConfig,
+		"/vault/meetings/.trash/2026-10-12-1400-design-review.md": "---\nmeeting_uid: \"" + reviewUID + "\"\n---\n",
+	})
+
+	m = press(openMeetings(t, m), enter)
+
+	if want := "/vault/meetings/2026/10/2026-10-12-1400-design-review.md"; m.Path() != want {
+		t.Errorf("opened %s, want %s", m.Path(), want)
+	}
+}

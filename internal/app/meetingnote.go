@@ -36,27 +36,32 @@ func meetingUID(mt calendar.Meeting) string {
 // meetings_folder to its path.
 func (m Model) meetingNotes() map[string]string {
 	notes := map[string]string{}
-	m.findMeetingNotes(m.abs(m.config().MeetingsFolder), notes)
-	return notes
-}
-
-// findMeetingNotes adds the Meeting Notes under dir to notes.
-func (m Model) findMeetingNotes(dir string, notes map[string]string) {
-	entries, _ := m.deps.FS.ReadDir(dir) // no folder: no Meeting Notes
-	for _, e := range entries {
-		p := filepath.Join(dir, e.Name())
-		if e.IsDir() {
-			m.findMeetingNotes(p, notes)
-			continue
-		}
-		if !index.IsNote(e.Name()) {
-			continue
+	m.walkMeetingsFolder(m.abs(m.config().MeetingsFolder), func(p string) {
+		if !index.IsNote(p) {
+			return
 		}
 		if data, err := m.deps.FS.ReadFile(p); err == nil {
 			if uid, ok := frontmatterMeetingUID(string(data)); ok {
 				notes[uid] = p
 			}
 		}
+	})
+	return notes
+}
+
+// walkMeetingsFolder calls fn with the path of each file under dir.
+// Hidden subfolders (.git, .trash, …) are skipped.
+func (m Model) walkMeetingsFolder(dir string, fn func(p string)) {
+	entries, _ := m.deps.FS.ReadDir(dir) // no folder: no files
+	for _, e := range entries {
+		p := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			if !strings.HasPrefix(e.Name(), ".") {
+				m.walkMeetingsFolder(p, fn)
+			}
+			continue
+		}
+		fn(p)
 	}
 }
 
@@ -91,14 +96,20 @@ func (m Model) openMeeting(mt calendar.Meeting) (Model, tea.Cmd) {
 }
 
 // meetingRel is the Vault-relative path for mt's new Meeting Note:
-// <meetings_folder>/YYYY-MM-DD-HHmm-<slug>.md, with -n before the .md
-// when n > 1.
+// <meetings_folder>/[<meetings_subfolder>/]YYYY-MM-DD-HHmm-<slug>.md,
+// with -n before the .md when n > 1.
 func (m Model) meetingRel(mt calendar.Meeting, n int) string {
 	s := slug(mt.Title)
 	if s == "" {
 		s = "meeting"
 	}
-	base := path.Join(m.config().MeetingsFolder, mt.Start.In(m.now().Location()).Format("2006-01-02-1504")+"-"+s)
+	cfg := m.config()
+	start := mt.Start.In(m.now().Location())
+	dir := cfg.MeetingsFolder
+	if cfg.MeetingsSubfolder != "" {
+		dir = path.Join(dir, dates.Format(start, cfg.MeetingsSubfolder))
+	}
+	base := path.Join(dir, start.Format("2006-01-02-1504")+"-"+s)
 	if n > 1 {
 		return fmt.Sprintf("%s-%d.md", base, n)
 	}
@@ -147,14 +158,17 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 	case !errors.Is(err, fs.ErrNotExist):
 		return m.say("reading the meeting Template: "+err.Error(), true), nil
 	}
-	n := 1 // the first name free now; a file may take it before the write
-	for {
-		if _, err := m.deps.FS.Stat(m.abs(m.meetingRel(mt, n))); err != nil {
-			break
+	// nextFree is the first n from n whose name no file under
+	// meetings_folder has, so [[<name>]] Links stay unambiguous.
+	nextFree := func(m Model, n int) int {
+		taken := map[string]bool{}
+		m.walkMeetingsFolder(m.abs(m.config().MeetingsFolder), func(p string) { taken[filepath.Base(p)] = true })
+		for taken[path.Base(m.meetingRel(mt, n))] {
+			n++
 		}
-		n++
+		return n
 	}
-	rel := m.meetingRel(mt, n)
+	rel := m.meetingRel(mt, nextFree(m, 1)) // files may appear before the write
 	text := []byte(m.meetingNoteText(tmpl, mt))
 	start := mt.Start.In(m.now().Location())
 	noDaily := ""
@@ -163,7 +177,8 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 			return "", fmt.Errorf("creating Meeting Note: %w", err)
 		}
 		// Never over a file that appeared since: count up past it.
-		for ; ; n++ {
+		n := nextFree(m, 1)
+		for {
 			rel = m.meetingRel(mt, n)
 			err := m.deps.FS.Create(m.abs(rel), text)
 			if err == nil {
@@ -172,6 +187,7 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 			if !errors.Is(err, fs.ErrExist) {
 				return "", fmt.Errorf("creating Meeting Note: %w", err)
 			}
+			n = nextFree(m, n+1)
 		}
 		p := m.abs(rel)
 		if m.deps.Watch != nil {

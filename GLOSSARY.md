@@ -30,6 +30,16 @@ _Avoid_: card, atomic note, permanent note
 A Note whose contents become the starting text of a new Note, after its placeholders are filled in.
 _Avoid_: skeleton, boilerplate
 
+### Meetings
+
+**Meeting**:
+One event on the user's calendar, read from a calendar feed. pholio only reads Meetings, never changes them. Each occurrence of a recurring Meeting is its own Meeting.
+_Avoid_: event, appointment
+
+**Meeting Note**:
+The Note for one Meeting, created from the meeting Template the first time that Meeting is picked. Picking the same Meeting again opens its existing Meeting Note.
+_Avoid_: meeting minutes, event note
+
 ### Connections
 
 **Link**:

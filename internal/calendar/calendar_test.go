@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -62,7 +64,7 @@ func TestFetchReadsTheFeedsMeetings(t *testing.T) {
 	}
 	url := serve(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) })
 
-	ms, err := calendar.Fetch(http.DefaultClient, url)
+	ms, err := calendar.Fetch(http.DefaultClient, url, "")
 
 	if err != nil || len(ms) != 3 {
 		t.Errorf("Fetch = %d Meetings, %v; want 3, nil", len(ms), err)
@@ -86,11 +88,75 @@ func TestFetchFailures(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			url := serve(t, tt.handler)
 
-			_, err := calendar.Fetch(&http.Client{Timeout: 50 * time.Millisecond}, url)
+			_, err := calendar.Fetch(&http.Client{Timeout: 50 * time.Millisecond}, url, "")
 
 			if err == nil || err.Error() != tt.want {
 				t.Errorf("Fetch error = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestFetchCachesTheBodyPrivatelyKeyedByURL(t *testing.T) {
+	body, err := os.ReadFile("testdata/day.ics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "calendars")
+	h := func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) }
+	a, b := serve(t, h), serve(t, h)
+
+	for _, url := range []string{a, b} {
+		if _, err := calendar.Fetch(http.DefaultClient, url, dir); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	files, _ := filepath.Glob(filepath.Join(dir, "*.ics"))
+	if len(files) != 2 {
+		t.Fatalf("cache files = %q, want one per URL", files)
+	}
+	for _, f := range files {
+		if fi, err := os.Stat(f); err != nil || fi.Mode().Perm() != 0o600 {
+			t.Errorf("%s: mode %v, %v; want 0600", f, fi.Mode().Perm(), err)
+		}
+	}
+	ms, at, err := calendar.Cached(dir, a)
+	if err != nil || len(ms) != 3 || time.Since(at) > time.Minute {
+		t.Errorf("Cached = %d Meetings at %v, %v; want 3 just now", len(ms), at, err)
+	}
+}
+
+func TestABadFetchKeepsTheCache(t *testing.T) {
+	body, err := os.ReadFile("testdata/day.ics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	var bad atomic.Bool
+	url := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		if !bad.Load() {
+			_, _ = w.Write(body)
+			return
+		}
+		_, _ = w.Write([]byte("<html>Sign in</html>"))
+	})
+	if _, err := calendar.Fetch(http.DefaultClient, url, dir); err != nil {
+		t.Fatal(err)
+	}
+	bad.Store(true)
+
+	if _, err := calendar.Fetch(http.DefaultClient, url, dir); err == nil {
+		t.Fatal("a bad body fetched without error")
+	}
+
+	if ms, _, err := calendar.Cached(dir, url); err != nil || len(ms) != 3 {
+		t.Errorf("Cached = %d Meetings, %v; want the 3 from the good fetch", len(ms), err)
+	}
+}
+
+func TestNothingCached(t *testing.T) {
+	if _, _, err := calendar.Cached(t.TempDir(), "https://example.test/x.ics"); err == nil {
+		t.Error("Cached found a feed never fetched")
 	}
 }

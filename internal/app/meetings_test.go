@@ -3,8 +3,11 @@ package app_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -54,19 +57,68 @@ func calendarsConfig(pairs ...string) string {
 }
 
 // meetingsApp opens /vault/a.md at meetingDay with userCfg as the user
-// config.
+// config and an empty calendar cache.
 func meetingsApp(t *testing.T, userCfg string) app.Model {
 	t.Helper()
+	return meetingsAppAt(t, t.TempDir(), seamtest.NewClock(meetingDay), userCfg)
+}
+
+// meetingsAppAt is meetingsApp with the cache home and clock given.
+func meetingsAppAt(t *testing.T, cacheHome string, clock *seamtest.Clock, userCfg string) app.Model {
+	t.Helper()
 	fsys := seamtest.NewMemFS(map[string]string{userConfig: userCfg, "/vault/a.md": "hi\n"})
-	s, err := config.Startup(fsys, dirs, "/home/u", "/vault/a.md")
+	d := dirs
+	d.CacheHome = cacheHome
+	s, err := config.Startup(fsys, d, "/home/u", "/vault/a.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := app.New(app.Deps{FS: fsys, Clock: seamtest.NewClock(meetingDay)}, "/vault/a.md")
+	m, err := app.New(app.Deps{FS: fsys, Clock: clock}, "/vault/a.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return resize(m.WithSession(s), 100, 20)
+}
+
+// liveFeed is a feed whose answer can change, counting its fetches.
+type liveFeed struct {
+	url    string
+	status atomic.Int64
+	body   atomic.Value // string
+	hits   atomic.Int32
+}
+
+func newLiveFeed(t *testing.T, body string) *liveFeed {
+	t.Helper()
+	f := &liveFeed{}
+	f.set(200, body)
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		f.hits.Add(1)
+		w.WriteHeader(int(f.status.Load()))
+		_, _ = w.Write([]byte(f.body.Load().(string)))
+	}))
+	t.Cleanup(s.Close)
+	f.url = s.URL
+	return f
+}
+
+func (f *liveFeed) set(status int, body string) {
+	f.status.Store(int64(status))
+	f.body.Store(body)
+}
+
+// setFetched backdates every cached feed under cacheHome to at.
+func setFetched(t *testing.T, cacheHome string, at time.Time) {
+	t.Helper()
+	files, _ := filepath.Glob(filepath.Join(cacheHome, "pholio", "calendars", "*.ics"))
+	if len(files) == 0 {
+		t.Fatal("nothing cached")
+	}
+	for _, f := range files {
+		if err := os.Chtimes(f, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // pressing presses k and returns the command it gave, unrun.
@@ -158,4 +210,91 @@ func TestNoCalendarsSaysWhereToAddThem(t *testing.T) {
 	if got, want := messageLine(m), "no calendars: add [[calendars]] to "+userConfig; got != want {
 		t.Errorf("message = %q, want %q", got, want)
 	}
+}
+
+func TestStartupFetchesSoThePickerOpensWithMeetings(t *testing.T) {
+	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+	m := meetingsApp(t, calendarsConfig("work", work.url))
+
+	m = drive(t, m, m.Init())
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+
+	if got := m.PaletteRows(); len(got) != 1 {
+		t.Errorf("rows = %q, want the Meeting fetched at startup", got)
+	}
+	drive(t, m, cmd)
+	if n := work.hits.Load(); n != 1 {
+		t.Errorf("fetched %d times, want once at startup only", n)
+	}
+}
+
+func TestThePickerShowsTheCacheAtOnceAndSaysWhenOffline(t *testing.T) {
+	cache := t.TempDir()
+	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+	cfg := calendarsConfig("work", work.url)
+	m := meetingsAppAt(t, cache, seamtest.NewClock(meetingDay), cfg)
+	drive(t, m, m.Init())
+	setFetched(t, cache, meetingDay.Add(-2*time.Hour))
+	work.set(401, "")
+
+	m = meetingsAppAt(t, cache, seamtest.NewClock(meetingDay), cfg)
+	startup := m.Init()
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+
+	if got := m.PaletteRows(); len(got) != 1 {
+		t.Errorf("rows = %q, want the cached Meeting before any fetch", got)
+	}
+	m = drive(t, drive(t, m, startup), cmd)
+	if got := m.PaletteRows(); len(got) != 1 {
+		t.Errorf("rows = %q, want the cached Meeting kept after a failed fetch", got)
+	}
+	viewHas(t, m, "work: offline, showing data from 2h ago")
+}
+
+func TestOpeningRefreshesStaleMeetingsInPlace(t *testing.T) {
+	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+	clock := seamtest.NewClock(meetingDay)
+	m := meetingsAppAt(t, t.TempDir(), clock, calendarsConfig("work", work.url))
+	m = drive(t, m, m.Init())
+	work.set(200, vcalendar(
+		vevent("a@example.test", "Standup", 9, 30, 15),
+		vevent("b@example.test", "Review", 14, 0, 60),
+	))
+	clock.Advance(16 * time.Minute)
+
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+	if got := m.PaletteRows(); len(got) != 1 {
+		t.Errorf("rows = %q, want the old list at once", got)
+	}
+	m = drive(t, m, cmd)
+
+	if got := m.PaletteRows(); len(got) != 2 {
+		t.Errorf("rows = %q, want the refreshed list", got)
+	}
+}
+
+func TestRRefreshesEvenWhenFresh(t *testing.T) {
+	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+	m := meetingsApp(t, calendarsConfig("work", work.url))
+	m = drive(t, m, m.Init())
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+	m = drive(t, m, cmd)
+	work.set(200, vcalendar())
+
+	m, cmd = pressing(m, tea.KeyPressMsg{Code: 'r', Text: "r"})
+	m = drive(t, m, cmd)
+
+	viewHas(t, m, "no Meetings")
+}
+
+func TestStartupFailuresWaitForThePicker(t *testing.T) {
+	m := meetingsApp(t, calendarsConfig("work", feed(t, 401, "")))
+
+	m = drive(t, m, m.Init())
+
+	if got := messageLine(m); got != "" {
+		t.Errorf("message = %q, want nothing until the picker opens", got)
+	}
+	m, _ = pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+	viewHas(t, m, "work: HTTP 401")
 }

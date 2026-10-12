@@ -14,17 +14,17 @@ func TestDirsFromEnv(t *testing.T) {
 	}{
 		{
 			name: "unset falls back to home, on macOS too",
-			want: config.Dirs{ConfigHome: "/home/u/.config", StateHome: "/home/u/.local/state"},
+			want: config.Dirs{ConfigHome: "/home/u/.config", StateHome: "/home/u/.local/state", CacheHome: "/home/u/.cache"},
 		},
 		{
 			name: "XDG vars win",
-			env:  map[string]string{"XDG_CONFIG_HOME": "/xdg/config", "XDG_STATE_HOME": "/xdg/state"},
-			want: config.Dirs{ConfigHome: "/xdg/config", StateHome: "/xdg/state"},
+			env:  map[string]string{"XDG_CONFIG_HOME": "/xdg/config", "XDG_STATE_HOME": "/xdg/state", "XDG_CACHE_HOME": "/xdg/cache"},
+			want: config.Dirs{ConfigHome: "/xdg/config", StateHome: "/xdg/state", CacheHome: "/xdg/cache"},
 		},
 		{
 			name: "relative XDG vars are ignored, per the XDG spec",
-			env:  map[string]string{"XDG_CONFIG_HOME": "rel/config", "XDG_STATE_HOME": "rel"},
-			want: config.Dirs{ConfigHome: "/home/u/.config", StateHome: "/home/u/.local/state"},
+			env:  map[string]string{"XDG_CONFIG_HOME": "rel/config", "XDG_STATE_HOME": "rel", "XDG_CACHE_HOME": "rel"},
+			want: config.Dirs{ConfigHome: "/home/u/.config", StateHome: "/home/u/.local/state", CacheHome: "/home/u/.cache"},
 		},
 	}
 	for _, tt := range tests {

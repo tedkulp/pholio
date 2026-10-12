@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-12
+
 ### Added
 - `meetings_subfolder` puts new Meeting Notes in date-based folders under `meetings_folder`, such as `"YYYY/MM"`, by the Meeting's start date, like `daily_subfolder` does for Daily Notes. File names and Daily Note back-links are unchanged; a name already used anywhere under `meetings_folder` counts up to `-2`. Existing Meeting Notes stay where they are.
 

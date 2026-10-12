@@ -125,6 +125,9 @@ func Parse(body []byte) ([]Meeting, error) {
 	return ms, nil
 }
 
+// DateTime is the layout of an ICS DATE-TIME value, less any trailing Z.
+const DateTime = "20060102T150405"
+
 var untilUTC = regexp.MustCompile(`UNTIL=\d{8}T\d{6}Z`)
 
 // readSeries is ev's recurrence starting at wall in z, or nil when ev
@@ -139,14 +142,8 @@ func readSeries(ev *ics.VEvent, wall time.Time, z zone, zones map[string]vtimezo
 	s.set.DTStart(wall)
 	if rp == nil {
 		s.set.RDate(wall)
-	} else if opt, err := rrule.StrToROptionInLocation(rp.Value, time.UTC); err == nil {
-		if untilUTC.MatchString(rp.Value) {
-			opt.Until = z.wall(opt.Until)
-		}
-		opt.Dtstart = wall
-		if r, err := rrule.NewRRule(*opt); err == nil {
-			s.set.RRule(r)
-		}
+	} else if r := readRRule(rp.Value, wall, z); r != nil {
+		s.set.RRule(r)
 	}
 	for _, p := range rdates {
 		ws, pz := readTimes(p, zones)
@@ -161,6 +158,24 @@ func readSeries(ev *ics.VEvent, wall time.Time, z zone, zones map[string]vtimezo
 		}
 	}
 	return s
+}
+
+// readRRule is the RRULE v starting at wall-clock time start in z, or nil
+// when it can't be read.
+func readRRule(v string, start time.Time, z zone) *rrule.RRule {
+	opt, err := rrule.StrToROptionInLocation(v, time.UTC)
+	if err != nil {
+		return nil
+	}
+	if untilUTC.MatchString(v) {
+		opt.Until = z.wall(opt.Until)
+	}
+	opt.Dtstart = start
+	r, err := rrule.NewRRule(*opt)
+	if err != nil {
+		return nil
+	}
+	return r
 }
 
 // between is the series' starts in [from, to).
@@ -187,7 +202,7 @@ func readTimes(p *ics.IANAProperty, zones map[string]vtimezone) ([]time.Time, zo
 	var out []time.Time
 	for v := range strings.SplitSeq(p.Value, ",") {
 		utc := strings.HasSuffix(v, "Z")
-		w, err := time.Parse("20060102T150405", strings.TrimSuffix(v, "Z"))
+		w, err := time.Parse(DateTime, strings.TrimSuffix(v, "Z"))
 		if err != nil {
 			continue
 		}
@@ -269,7 +284,7 @@ func readVTimezone(tz *ics.VTimezone) vtimezone {
 		if !ok1 || !ok2 || sp == nil {
 			continue
 		}
-		start, err := time.Parse("20060102T150405", sp.Value)
+		start, err := time.Parse(DateTime, sp.Value)
 		if err != nil {
 			continue
 		}
@@ -282,16 +297,13 @@ func readVTimezone(tz *ics.VTimezone) vtimezone {
 		set.DTStart(start)
 		set.RDate(start)
 		if rp := cb.GetProperty(ics.ComponentPropertyRrule); rp != nil {
-			if opt, err := rrule.StrToROptionInLocation(rp.Value, time.UTC); err == nil {
-				opt.Dtstart = start
-				if r, err := rrule.NewRRule(*opt); err == nil {
-					set.RRule(r)
-				}
+			if r := readRRule(rp.Value, start, zone{loc: time.UTC}); r != nil {
+				set.RRule(r)
 			}
 		}
 		for _, p := range cb.GetProperties(ics.ComponentPropertyRdate) {
 			for v := range strings.SplitSeq(p.Value, ",") {
-				if t, err := time.Parse("20060102T150405", v); err == nil {
+				if t, err := time.Parse(DateTime, v); err == nil {
 					set.RDate(t)
 				}
 			}
@@ -358,7 +370,8 @@ func duration(v string) (time.Duration, bool) {
 const Timeout = 15 * time.Second
 
 // Fetch downloads the feed at url and parses its Meetings. Its errors are
-// short enough for the picker: "HTTP 401", "timed out", "not a calendar".
+// short enough for the picker: "HTTP 401", "timed out", "not a calendar",
+// "offline". They never hold the URL, which is a secret.
 // With a cache dir, a body that parses replaces url's cache file there; a
 // bad one leaves it alone.
 func Fetch(client *http.Client, url, dir string) ([]Meeting, error) {
@@ -382,7 +395,7 @@ func Fetch(client *http.Client, url, dir string) ([]Meeting, error) {
 	if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
 		return nil, errors.New("timed out")
 	}
-	return nil, err
+	return nil, errors.New("offline")
 }
 
 // parseFeed is Parse for a body that must be a calendar.

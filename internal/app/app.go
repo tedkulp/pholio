@@ -148,7 +148,7 @@ func (m Model) rel(path string) string {
 
 // Init implements tea.Model: it starts listening for watcher Notices,
 // scanning the Vault index and fetching the calendars.
-func (m Model) Init() tea.Cmd { return tea.Batch(m.listen(), m.scanIndex(), m.fetchFeeds(false)) }
+func (m Model) Init() tea.Cmd { return tea.Batch(m.listen(), m.scanIndex(), m.startFeeds()) }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -192,6 +192,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.grepResult(msg)
 	case meetingsMsg:
 		m = m.meetingsArrived(msg)
+	case cachedMsg:
+		m = m.cacheArrived(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()

@@ -314,7 +314,7 @@ func TestStartupFetchesSoThePickerOpensWithMeetings(t *testing.T) {
 	}
 }
 
-func TestThePickerShowsTheCacheAtOnceAndSaysWhenOffline(t *testing.T) {
+func TestThePickerShowsTheCacheAndSaysWhenOffline(t *testing.T) {
 	cache := t.TempDir()
 	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
 	cfg := calendarsConfig("work", work.url)
@@ -324,13 +324,9 @@ func TestThePickerShowsTheCacheAtOnceAndSaysWhenOffline(t *testing.T) {
 	work.set(401, "")
 
 	m = meetingsAppAt(t, cache, seamtest.NewClock(meetingDay), cfg)
-	startup := m.Init()
+	m = drive(t, m, m.Init())
 	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
-
-	if got := m.PaletteRows(); len(got) != 1 {
-		t.Errorf("rows = %q, want the cached Meeting before any fetch", got)
-	}
-	m = drive(t, drive(t, m, startup), cmd)
+	m = drive(t, m, cmd)
 	if got := m.PaletteRows(); len(got) != 1 {
 		t.Errorf("rows = %q, want the cached Meeting kept after a failed fetch", got)
 	}
@@ -383,4 +379,35 @@ func TestStartupFailuresWaitForThePicker(t *testing.T) {
 	}
 	m, _ = pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
 	viewHas(t, m, "work: HTTP 401")
+}
+
+func TestStartupFetchesEvenAFreshCache(t *testing.T) {
+	cache := t.TempDir()
+	work := newLiveFeed(t, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+	cfg := calendarsConfig("work", work.url)
+	m := meetingsAppAt(t, cache, seamtest.NewClock(meetingDay), cfg)
+	drive(t, m, m.Init())
+	setFetched(t, cache, meetingDay.Add(-time.Minute))
+
+	m = meetingsAppAt(t, cache, seamtest.NewClock(meetingDay), cfg)
+	drive(t, m, m.Init())
+
+	if n := work.hits.Load(); n != 2 {
+		t.Errorf("fetched %d times, want once per start", n)
+	}
+}
+
+func TestOpeningRetriesAFailedFetch(t *testing.T) {
+	work := newLiveFeed(t, "")
+	work.set(503, "")
+	m := meetingsApp(t, calendarsConfig("work", work.url))
+	m = drive(t, m, m.Init())
+	work.set(200, vcalendar(vevent("a@example.test", "Standup", 9, 30, 15)))
+
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+	m = drive(t, m, cmd)
+
+	if got := m.PaletteRows(); len(got) != 1 {
+		t.Errorf("rows = %q, want the Meeting from the retried fetch", got)
+	}
 }

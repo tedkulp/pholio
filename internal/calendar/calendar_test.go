@@ -110,6 +110,18 @@ func TestFetchFailures(t *testing.T) {
 	}
 }
 
+func TestFetchNeverReportsTheSecretURL(t *testing.T) {
+	s := httptest.NewServer(http.NotFoundHandler())
+	url := s.URL + "/private/s3cret-token/basic.ics"
+	s.Close() // nothing listens there now
+
+	_, err := calendar.Fetch(http.DefaultClient, url, "")
+
+	if err == nil || err.Error() != "offline" {
+		t.Errorf("Fetch error = %v, want %q", err, "offline")
+	}
+}
+
 func TestFetchCachesTheBodyPrivatelyKeyedByURL(t *testing.T) {
 	body, err := os.ReadFile("testdata/day.ics")
 	if err != nil {

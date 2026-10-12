@@ -32,7 +32,6 @@ type feeds struct {
 type feed struct {
 	ms       []calendar.Meeting
 	fetched  time.Time // when ms were fetched; zero when there are none
-	tried    time.Time // when the last fetch started
 	fetching bool
 	err      error // why the last fetch failed, or nil
 }
@@ -60,6 +59,13 @@ type meetingsMsg struct {
 	err error
 }
 
+// cachedMsg is one calendar's Meetings read from the cache, fetched then.
+type cachedMsg struct {
+	url     string
+	ms      []calendar.Meeting
+	fetched time.Time
+}
+
 // calendarCache is where feed bodies are cached, or "" for no cache.
 func (m Model) calendarCache() string {
 	if m.session == nil || m.session.Dirs.CacheHome == "" {
@@ -68,33 +74,47 @@ func (m Model) calendarCache() string {
 	return filepath.Join(m.session.Dirs.CacheHome, "pholio", "calendars")
 }
 
-// feed is c's feed, read from the cache the first time it is asked for.
+// feed is c's feed.
 func (m Model) feed(c config.Calendar) *feed {
-	if f, ok := m.feeds.byURL[c.URL]; ok {
-		return f
+	f, ok := m.feeds.byURL[c.URL]
+	if !ok {
+		f = &feed{}
+		m.feeds.byURL[c.URL] = f
 	}
-	f := &feed{}
-	if dir := m.calendarCache(); dir != "" {
-		if ms, at, err := calendar.Cached(dir, c.URL); err == nil {
-			f.ms, f.fetched, f.tried = ms, at, at
-		}
-	}
-	m.feeds.byURL[c.URL] = f
 	return f
 }
 
+// startFeeds (at startup) reads every calendar's cache and fetches every
+// calendar, all in the background.
+func (m Model) startFeeds() tea.Cmd {
+	cmds := []tea.Cmd{m.fetchFeeds(true)}
+	if dir := m.calendarCache(); dir != "" {
+		for _, c := range m.config().Calendars {
+			cmds = append(cmds, func() tea.Msg {
+				ms, at, err := calendar.Cached(dir, c.URL)
+				if err != nil {
+					return nil // nothing cached
+				}
+				return cachedMsg{url: c.URL, ms: ms, fetched: at}
+			})
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
 // fetchFeeds fetches every calendar not already being fetched, one
-// goroutine each: all of them when force is set, else the stale ones.
+// goroutine each: all of them when force is set, else those not fetched
+// successfully in the last staleAfter.
 func (m Model) fetchFeeds(force bool) tea.Cmd {
 	client := &http.Client{Timeout: calendar.Timeout}
 	dir := m.calendarCache()
 	var cmds []tea.Cmd
 	for _, c := range m.config().Calendars {
 		f := m.feed(c)
-		if f.fetching || !force && m.now().Sub(f.tried) <= staleAfter {
+		if f.fetching || !force && m.now().Sub(f.fetched) <= staleAfter {
 			continue
 		}
-		f.fetching, f.tried = true, m.now()
+		f.fetching = true
 		cmds = append(cmds, func() tea.Msg {
 			ms, err := calendar.Fetch(client, c.URL, dir)
 			return meetingsMsg{url: c.URL, ms: ms, err: err}
@@ -160,6 +180,22 @@ func (m Model) meetingsArrived(msg meetingsMsg) Model {
 	if msg.err == nil {
 		f.ms, f.fetched = msg.ms, m.now()
 	}
+	return m.redrawMeetings()
+}
+
+// cacheArrived stores one calendar's cached Meetings, unless a fetch has
+// already brought newer ones, and redraws an open picker.
+func (m Model) cacheArrived(msg cachedMsg) Model {
+	f, ok := m.feeds.byURL[msg.url]
+	if !ok || !f.fetched.IsZero() {
+		return m
+	}
+	f.ms, f.fetched = msg.ms, msg.fetched
+	return m.redrawMeetings()
+}
+
+// redrawMeetings refills the picker if it is open.
+func (m Model) redrawMeetings() Model {
 	if st := m.feeds.picker; st != nil && st.open && m.overlay != nil {
 		m.overlay.p = m.meetingItems(m.overlay.p, st)
 	}

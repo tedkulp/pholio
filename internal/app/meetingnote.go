@@ -29,29 +29,35 @@ const meetingTemplate = "# {{title}}\n\n{{start}}–{{end}} · {{daily}}\nAttend
 // meeting_uid: line: its UID and its original start in UTC, so a moved
 // occurrence keeps its Meeting Note.
 func meetingUID(mt calendar.Meeting) string {
-	return mt.UID + "/" + mt.Original.Format("20060102T150405Z")
+	return mt.UID + "/" + mt.Original.Format(calendar.DateTime+"Z")
 }
 
-// meetingNotes maps the meeting_uid of each Meeting Note in meetings_folder
-// to its path.
-// ponytail: reads every Note in the folder (not subfolders); use the index's
-// frontmatter if this gets slow.
+// meetingNotes maps the meeting_uid of each Meeting Note under
+// meetings_folder to its path.
 func (m Model) meetingNotes() map[string]string {
-	dir := m.abs(m.config().MeetingsFolder)
-	entries, _ := m.deps.FS.ReadDir(dir) // no folder: no Meeting Notes
 	notes := map[string]string{}
+	m.findMeetingNotes(m.abs(m.config().MeetingsFolder), notes)
+	return notes
+}
+
+// findMeetingNotes adds the Meeting Notes under dir to notes.
+func (m Model) findMeetingNotes(dir string, notes map[string]string) {
+	entries, _ := m.deps.FS.ReadDir(dir) // no folder: no Meeting Notes
 	for _, e := range entries {
-		if e.IsDir() || !index.IsNote(e.Name()) {
+		p := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			m.findMeetingNotes(p, notes)
 			continue
 		}
-		p := filepath.Join(dir, e.Name())
+		if !index.IsNote(e.Name()) {
+			continue
+		}
 		if data, err := m.deps.FS.ReadFile(p); err == nil {
 			if uid, ok := frontmatterMeetingUID(string(data)); ok {
 				notes[uid] = p
 			}
 		}
 	}
-	return notes
 }
 
 // frontmatterMeetingUID is the meeting_uid: in a Note's frontmatter, if any.
@@ -85,21 +91,18 @@ func (m Model) openMeeting(mt calendar.Meeting) (Model, tea.Cmd) {
 }
 
 // meetingRel is the Vault-relative path for mt's new Meeting Note:
-// <meetings_folder>/YYYY-MM-DD-HHmm-<slug>.md, counting up -2, -3, … past
-// files that already exist.
-func (m Model) meetingRel(mt calendar.Meeting) string {
+// <meetings_folder>/YYYY-MM-DD-HHmm-<slug>.md, with -n before the .md
+// when n > 1.
+func (m Model) meetingRel(mt calendar.Meeting, n int) string {
 	s := slug(mt.Title)
 	if s == "" {
 		s = "meeting"
 	}
 	base := path.Join(m.config().MeetingsFolder, mt.Start.In(m.now().Location()).Format("2006-01-02-1504")+"-"+s)
-	rel := base + ".md"
-	for n := 2; ; n++ {
-		if _, err := m.deps.FS.Stat(m.abs(rel)); err != nil {
-			return rel
-		}
-		rel = fmt.Sprintf("%s-%d.md", base, n)
+	if n > 1 {
+		return fmt.Sprintf("%s-%d.md", base, n)
 	}
+	return base + ".md"
 }
 
 // meetingNoteText is mt's Meeting Note made from tmpl, with its
@@ -124,11 +127,13 @@ func (m Model) meetingNoteText(tmpl string, mt calendar.Meeting) string {
 			"description": mt.Description,
 		},
 	})
-	uid := "meeting_uid: " + strconv.Quote(meetingUID(mt)) + "\n"
-	if rest, ok := strings.CutPrefix(text, "---\n"); ok {
-		return "---\n" + uid + rest
+	uid := "meeting_uid: " + strconv.Quote(meetingUID(mt))
+	for _, eol := range []string{"\n", "\r\n"} {
+		if rest, ok := strings.CutPrefix(text, "---"+eol); ok {
+			return "---" + eol + uid + eol + rest
+		}
 	}
-	return "---\n" + uid + "---\n" + text
+	return "---\n" + uid + "\n---\n" + text
 }
 
 // createMeetingNote writes mt's Meeting Note from the meeting Template
@@ -142,18 +147,33 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 	case !errors.Is(err, fs.ErrNotExist):
 		return m.say("reading the meeting Template: "+err.Error(), true), nil
 	}
-	rel := m.meetingRel(mt)
-	p := m.abs(rel)
+	n := 1 // the first name free now; a file may take it before the write
+	for {
+		if _, err := m.deps.FS.Stat(m.abs(m.meetingRel(mt, n))); err != nil {
+			break
+		}
+		n++
+	}
+	rel := m.meetingRel(mt, n)
 	text := []byte(m.meetingNoteText(tmpl, mt))
 	start := mt.Start.In(m.now().Location())
 	noDaily := ""
-	return m.openThen(p, func(m Model) error {
-		if err := m.deps.FS.MkdirAll(filepath.Dir(p)); err != nil {
-			return fmt.Errorf("creating Meeting Note: %w", err)
+	return m.openThen(m.abs(rel), func(m Model) (string, error) {
+		if err := m.deps.FS.MkdirAll(filepath.Dir(m.abs(rel))); err != nil {
+			return "", fmt.Errorf("creating Meeting Note: %w", err)
 		}
-		if err := m.deps.FS.WriteFile(p, text); err != nil {
-			return fmt.Errorf("creating Meeting Note: %w", err)
+		// Never over a file that appeared since: count up past it.
+		for ; ; n++ {
+			rel = m.meetingRel(mt, n)
+			err := m.deps.FS.Create(m.abs(rel), text)
+			if err == nil {
+				break
+			}
+			if !errors.Is(err, fs.ErrExist) {
+				return "", fmt.Errorf("creating Meeting Note: %w", err)
+			}
 		}
+		p := m.abs(rel)
 		if m.deps.Watch != nil {
 			m.deps.Watch.Wrote(p, text)
 		}
@@ -164,7 +184,7 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 		if !linked {
 			noDaily = " (no Daily Note for " + start.Format(dates.ISO) + ")"
 		}
-		return err
+		return p, err
 	}, func(m Model) Model {
 		e := m.ed.Engine()
 		e.SetCursor(engine.Pos{Line: e.Buf.LineCount() - 1})

@@ -23,10 +23,10 @@ func meetingNotesVault(t *testing.T, files map[string]string) (app.Model, *seamt
 	return meetingNotesVaultWith(t, vevent("review@example.test", "Design review", 14, 0, 60), files)
 }
 
-func meetingNotesVaultWith(t *testing.T, event string, files map[string]string) (app.Model, *seamtest.MemFS) {
+func meetingNotesVaultWith(t *testing.T, meeting string, files map[string]string) (app.Model, *seamtest.MemFS) {
 	t.Helper()
 	all := map[string]string{
-		userConfig:    calendarsConfig("work", feed(t, 200, vcalendar(event))),
+		userConfig:    calendarsConfig("work", feed(t, 200, vcalendar(meeting))),
 		"/vault/a.md": "hi\n",
 	}
 	for p, s := range files {
@@ -104,10 +104,10 @@ func TestMeetingTemplateFrontmatterGetsTheMeetingUID(t *testing.T) {
 }
 
 func TestTheMeetingNoteHasTheMeetingsDetails(t *testing.T) {
-	event := strings.Replace(vevent("review@example.test", "Design review", 14, 0, 60), "END:VEVENT",
+	meeting := strings.Replace(vevent("review@example.test", "Design review", 14, 0, 60), "END:VEVENT",
 		"ATTENDEE;CN=Ada Example:mailto:ada@example.test\r\nATTENDEE:mailto:bob@example.test\r\n"+
 			"LOCATION:Room 4\\, Floor 2\r\nDESCRIPTION:Join https://acme.zoom.us/j/1\\nBring notes\r\nEND:VEVENT", 1)
-	m, fsys := meetingNotesVaultWith(t, event, map[string]string{
+	m, fsys := meetingNotesVaultWith(t, meeting, map[string]string{
 		"/vault/templates/meeting.md": "{{attendees}}|{{location}}|{{link}}|{{description}}\n",
 	})
 
@@ -151,8 +151,8 @@ func TestAMeetingNoteNameCollisionCountsUp(t *testing.T) {
 }
 
 func TestAnUntitledMeetingIsNamedMeeting(t *testing.T) {
-	event := strings.Replace(vevent("x@example.test", "", 9, 0, 30), "SUMMARY:\r\n", "", 1)
-	m, fsys := meetingNotesVaultWith(t, event, map[string]string{"/vault/templates/meeting.md": "# {{title}}\n"})
+	meeting := strings.Replace(vevent("x@example.test", "", 9, 0, 30), "SUMMARY:\r\n", "", 1)
+	m, fsys := meetingNotesVaultWith(t, meeting, map[string]string{"/vault/templates/meeting.md": "# {{title}}\n"})
 
 	_ = press(openMeetings(t, m), enter)
 
@@ -270,5 +270,51 @@ func TestTheBackLinkReachesADirtyOpenDailyNote(t *testing.T) {
 				t.Errorf("opened %s, want the Meeting Note", m.Path())
 			}
 		})
+	}
+}
+
+func TestAMeetingNoteInASubfolderIsFound(t *testing.T) {
+	existing := "/vault/meetings/2026/10/notes-from-review.md"
+	m, _ := meetingNotesVault(t, map[string]string{
+		existing: "---\nmeeting_uid: \"" + reviewUID + "\"\n---\n# Review\n",
+	})
+
+	m = openMeetings(t, m)
+	if got := m.PaletteSelected(); got != "✓ 14:00–15:00  Design review" {
+		t.Errorf("row = %q, want it ticked", got)
+	}
+	if m = press(m, enter); m.Path() != existing {
+		t.Errorf("opened %s, want %s", m.Path(), existing)
+	}
+}
+
+func TestANoteAppearingWhileAskedIsNotOverwritten(t *testing.T) {
+	m, fsys := meetingNotesVault(t, nil)
+	m = press(typeKeys(m, "omine"), esc)
+
+	m = press(openMeetings(t, m), enter) // asks to save a.md first
+	if err := fsys.WriteFile(reviewNote, []byte("# someone else's\n")); err != nil {
+		t.Fatal(err)
+	}
+	m = typeKeys(m, "y")
+
+	if got := fileText(t, fsys, reviewNote); got != "# someone else's\n" {
+		t.Errorf("the Note that appeared was overwritten: %q", got)
+	}
+	if want := "/vault/meetings/2026-10-12-1400-design-review-2.md"; m.Path() != want {
+		t.Errorf("opened %s, want %s", m.Path(), want)
+	}
+}
+
+func TestACRLFTemplateFrontmatterGetsTheMeetingUID(t *testing.T) {
+	m, fsys := meetingNotesVault(t, map[string]string{
+		"/vault/templates/meeting.md": "---\r\ntags: [meeting]\r\n---\r\n# {{title}}\r\n",
+	})
+
+	_ = press(openMeetings(t, m), enter)
+
+	want := "---\r\nmeeting_uid: \"" + reviewUID + "\"\r\ntags: [meeting]\r\n---\r\n# Design review\r\n"
+	if got := fileText(t, fsys, reviewNote); got != want {
+		t.Errorf("Meeting Note =\n%q\nwant\n%q", got, want)
 	}
 }

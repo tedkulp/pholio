@@ -91,9 +91,8 @@ func (m Model) ensureDaily(day time.Time) (string, error) {
 // openDaily (spc d, :today, :daily) opens day's Daily Note, creating it
 // from the Template once the open buffer has been dealt with.
 func (m Model) openDaily(day time.Time) (Model, tea.Cmd) {
-	return m.openThen(m.dailyNotes().Path(day), func(m Model) error {
-		_, err := m.ensureDaily(day)
-		return err
+	return m.openThen(m.dailyNotes().Path(day), func(m Model) (string, error) {
+		return m.ensureDaily(day)
 	}, nil)
 }
 

@@ -20,6 +20,9 @@ type Clock interface {
 type FS interface {
 	ReadFile(name string) ([]byte, error)
 	WriteFile(name string, data []byte) error
+	// Create writes data to a new file, failing with fs.ErrExist when
+	// name is already there.
+	Create(name string, data []byte) error
 	Stat(name string) (fs.FileInfo, error)
 	ReadDir(name string) ([]fs.DirEntry, error)
 	MkdirAll(name string) error
@@ -79,6 +82,20 @@ func (OSFS) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
 // WriteFile writes data to the named file, creating it if needed.
 func (OSFS) WriteFile(name string, data []byte) error {
 	return os.WriteFile(name, data, 0o644)
+}
+
+// Create writes data to a new file, failing with fs.ErrExist when name
+// is already there.
+func (OSFS) Create(name string, data []byte) error {
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644) //nolint:gosec // Notes get ordinary 0644 permissions, as WriteFile
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	return err
 }
 
 // Stat describes the named file.

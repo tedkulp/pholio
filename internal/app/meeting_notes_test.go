@@ -100,6 +100,23 @@ func TestMeetingTemplateFrontmatterGetsTheMeetingUID(t *testing.T) {
 	}
 }
 
+func TestTheMeetingNoteHasTheMeetingsDetails(t *testing.T) {
+	event := strings.Replace(vevent("review@example.test", "Design review", 14, 0, 60), "END:VEVENT",
+		"ATTENDEE;CN=Ada Example:mailto:ada@example.test\r\nATTENDEE:mailto:bob@example.test\r\n"+
+			"LOCATION:Room 4\\, Floor 2\r\nDESCRIPTION:Join https://acme.zoom.us/j/1\\nBring notes\r\nEND:VEVENT", 1)
+	m, fsys := meetingNotesVaultWith(t, event, map[string]string{
+		"/vault/templates/meeting.md": "{{attendees}}|{{location}}|{{link}}|{{description}}\n",
+	})
+
+	_ = press(openMeetings(t, m), enter)
+
+	want := "---\nmeeting_uid: \"" + reviewUID + "\"\n---\n" +
+		"Ada Example, bob@example.test|Room 4, Floor 2|https://acme.zoom.us/j/1|Join https://acme.zoom.us/j/1\nBring notes\n"
+	if got := fileText(t, fsys, reviewNote); got != want {
+		t.Errorf("Meeting Note =\n%q\nwant\n%q", got, want)
+	}
+}
+
 func TestMeetingTemplateWithoutFrontmatterGetsANewBlock(t *testing.T) {
 	m, fsys := meetingNotesVault(t, map[string]string{
 		"/vault/.pholio/config.toml": "meetings_folder = \"mtg\"\nmeeting_template = \"t/m.md\"\n",

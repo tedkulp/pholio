@@ -30,6 +30,11 @@ type Meeting struct {
 	// CalendarColor is the feed's calendar-level COLOR (RFC 7986, a CSS
 	// colour name) as written, "" if none.
 	CalendarColor string
+
+	Attendees   []string // see details.go
+	Location    string
+	Link        string
+	Description string
 }
 
 // Parse reads the Meetings of an ICS body. All-day Meetings
@@ -66,6 +71,7 @@ func Parse(body []byte) ([]Meeting, error) {
 		if p := ev.GetProperty(ics.ComponentPropertySummary); p != nil {
 			m.Title = p.Value
 		}
+		m.details(ev)
 		ms = append(ms, m)
 	}
 	return ms, nil

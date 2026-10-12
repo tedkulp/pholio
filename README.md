@@ -85,6 +85,7 @@ The editor is vim: counts, motions, `d`/`c`/`y`, `>`/`<` (one tab per level), te
 | `spc /` | search the Vault | `:grep [query]` |
 | `spc b` | Backlinks to this Note | `:backlinks` |
 | `spc z` | new Zettel, linked from here | `:zettel [title]` |
+| `spc m` | Today's Meetings | `:meetings` |
 | `spc n` | new Note | `:new <name>` |
 | | rename / delete this Note | `:rename <path>`, `:delete` |
 | `spc e` | toggle the sidebar | `:sidebar` |
@@ -125,6 +126,25 @@ The Task List (`spc t`) groups open Tasks into Overdue, Today, Upcoming and No d
 
 The Task Editor is a form for one Task: its Description (text and `#tags`), Status (open, in progress, done, cancelled), Due, Scheduled and Start dates, and Priority. Open it with `spc T` or `:task` on a Task's line, or `e` in the Task List; the Task List's `a` opens it empty. `tab` / `shift+tab` move between rows, `space`, `←` and `→` change Status and Priority, and the date rows take ISO dates or `today`, `fri`, `+3d`…, saved as ISO dates. An empty date row removes the field. `enter` saves, unless a date row isn't a date, and `esc` discards the edits. Saving rebuilds the line as checkbox, Description, then its fields (each in its own format, new ones in the line's format or `task_format`), then any `^block-id`; fields the form doesn't show, like `[created:: …]` or `✅ …`, are kept. In the open Note the save is one undoable change to the buffer; other Notes are rewritten on disk.
 
+## Meetings
+
+pholio reads your Meetings from ICS calendar feeds (the secret iCal address that Google Calendar, Outlook and Fastmail give you) and makes a Meeting Note for each one you pick. It never changes your calendar. Add each feed to the user config, not the Vault config, because feed URLs are secrets:
+
+```toml
+[[calendars]]
+name = "work"
+url = "https://calendar.google.com/calendar/ical/…/basic.ics"
+color = "steelblue"   # optional: a CSS colour name or "#rrggbb"
+```
+
+`spc m` (or `:meetings`) opens the Meeting picker on Today: every timed Meeting from every calendar, sorted by start, with the calendar's name in its colour (`color`, else the feed's own, else dimmed). Meetings that have ended are dimmed, and a `✓` marks a Meeting that already has a Meeting Note. `h` / `l` (or `←` / `→`) move a day back or forward, `t` returns to Today, `r` refreshes every calendar, `/` filters, and `esc` closes it.
+
+`enter` opens the Meeting's Meeting Note, or creates it in `meetings/YYYY-MM-DD-HHmm-<title>.md` from `templates/meeting.md` (a built-in Template if that file is missing) and adds a back-link under `## Meetings` in that day's Daily Note, if it exists. The Meeting Note's frontmatter records the Meeting's `meeting_uid`, so picking the same Meeting again opens it wherever it now is under `meetings/`, even after the Meeting has moved.
+
+Calendars are fetched in the background at startup and again when the picker opens if they're over 15 minutes old. The last good copy of each is cached, so the picker opens with Meetings at once and still works offline; a calendar that can't be fetched says why on the picker's info line.
+
+Meeting templates can use the daily placeholders (`{{date}}` is the Meeting's day and `{{title}}` its title) plus `{{start}}`, `{{end}}` (both taking `:FMT`, `HH:mm` by default), `{{daily}}` (a Link to that day's Daily Note), `{{attendees}}`, `{{location}}`, `{{link}}` (the video-call link) and `{{description}}`.
+
 ## Configuration
 
 Every key has a default, so no config file is needed. pholio never writes to these files.
@@ -139,6 +159,7 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `wrap` | `true` | soft word-wrap; `false` scrolls sideways |
 | `conceal` | `true` | hide `[[ ]]`, `**`, `~~`, backticks and link URLs off the cursor line |
 | `open_daily_on_startup` | `true` | |
+| `[[calendars]]` | | ICS feeds of Meetings: `name`, `url` and optional `color` (see [Meetings](#meetings)) |
 
 **Vault config**, `<vault>/.pholio/config.toml` (these keys can also go in the user config; the Vault file wins):
 
@@ -152,6 +173,9 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `new_note_folder` | `""` (the Vault root) |
 | `tasks_heading` | `"## Tasks"` (where the Task List's `a` adds Tasks) |
 | `task_format` | `"dataview"` (or `"emoji"`: the Task Format pholio writes done dates in) |
+| `meetings_folder` | `"meetings"` |
+| `meeting_template` | `"templates/meeting.md"` |
+| `meetings_heading` | `"## Meetings"` (where Meeting Note back-links go in the Daily Note) |
 
 Daily templates can use `{{date}}`, `{{date:FMT}}`, `{{time}}`, `{{time:FMT}}`, `{{title}}`, `{{yesterday}}` and `{{tomorrow}}`, with moment-style formats such as `{{date:dddd, MMMM D}}`.
 

@@ -74,6 +74,7 @@ new_note_folder = "inbox"
 tasks_heading = "### Todo"
 task_format = "emoji"
 meetings_folder = "work/meetings"
+meetings_subfolder = "YYYY"
 meeting_template = "tpl/meeting.md"
 meetings_heading = "### Calls"
 `,
@@ -82,6 +83,7 @@ meetings_heading = "### Calls"
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
 				c.DailySubfolder, c.TaskFormat = "YYYY/MM", index.Emoji
+				c.MeetingsSubfolder = "YYYY"
 			},
 		},
 		{
@@ -141,6 +143,11 @@ task_format = "bogus"
 				userPath + `: daily_subfolder: want a folder inside the Vault, got "/YYYY"`,
 				vaultPath + `: daily_subfolder: want a folder inside the Vault, got "[..]/YYYY"`,
 			},
+		},
+		{
+			name:     "meetings_subfolder must stay inside the Vault",
+			vault:    "meetings_subfolder = \"../YYYY\"\n",
+			problems: []string{vaultPath + `: meetings_subfolder: want a folder inside the Vault, got "../YYYY"`},
 		},
 		{
 			name:     "bad TOML ignores that file only",

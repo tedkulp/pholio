@@ -185,6 +185,7 @@ Every key has a default, so no config file is needed. pholio never writes to the
 | `tasks_heading` | `"## Tasks"` (where the Task List's `a` adds Tasks) |
 | `task_format` | `"dataview"` (or `"emoji"`: the Task Format pholio writes done dates in) |
 | `meetings_folder` | `"meetings"` |
+| `meetings_subfolder` | `""` (e.g. `"YYYY/MM"` puts new Meeting Notes in `meetings/2026/10/2026-10-12-1000-standup.md`, by the Meeting's start date) |
 | `meeting_template` | `"templates/meeting.md"` |
 | `meetings_heading` | `"## Meetings"` (where Meeting Note back-links go in the Daily Note) |
 

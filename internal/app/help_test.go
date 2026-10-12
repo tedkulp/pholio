@@ -32,7 +32,7 @@ func TestSpcQuestionOpensHelp(t *testing.T) {
 }
 
 func TestLeaderHintListsHelp(t *testing.T) {
-	m := keys(resize(shell(t, shellVault(), "/vault/a.md"), 120, 12), space)
+	m := keys(resize(shell(t, shellVault(), "/vault/a.md"), 140, 12), space)
 
 	golden.RequireEqual(t, rows(m)[10])
 }

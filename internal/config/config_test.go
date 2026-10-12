@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -39,7 +40,7 @@ func TestLoadWithNoFilesGivesDefaults(t *testing.T) {
 	if len(problems) != 0 {
 		t.Fatalf("problems = %v, want none", problems)
 	}
-	if cfg != defaults() {
+	if !reflect.DeepEqual(cfg, defaults()) {
 		t.Fatalf("cfg = %+v\nwant %+v", cfg, defaults())
 	}
 }
@@ -139,6 +140,41 @@ task_format = "bogus"
 			want:     func(c *config.Config) { c.DailyFolder = "journal" },
 			problems: []string{userPath + ": toml: line 1 (last key \"wrap\"): expected value but found '\\n' instead"},
 		},
+		{
+			name: "calendars",
+			user: "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\ncolor = \"lightcoral\"\n" +
+				"[[calendars]]\nname = \"home\"\nurl = \"https://example.test/home.ics\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{
+					{Name: "work", URL: "https://example.test/work.ics", Color: "lightcoral"},
+					{Name: "home", URL: "https://example.test/home.ics"},
+				}
+			},
+		},
+		{
+			name: "a calendar missing name or url is skipped",
+			user: "[[calendars]]\nurl = \"https://example.test/a.ics\"\n" +
+				"[[calendars]]\nname = \"b\"\n" +
+				"[[calendars]]\nname = \"c\"\nurl = \"https://example.test/c.ics\"\ncolour = \"red\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{{Name: "c", URL: "https://example.test/c.ics"}}
+			},
+			problems: []string{
+				userPath + `: calendars[1]: name: want a non-empty string, got none`,
+				userPath + `: calendars[2]: url: want a non-empty string, got none`,
+				userPath + `: calendars[3]: unknown key "colour"`,
+			},
+		},
+		{
+			name:     "calendars must be tables",
+			user:     "calendars = \"work\"\n",
+			problems: []string{userPath + `: calendars: want [[calendars]] tables, got "work"`},
+		},
+		{
+			name:     "calendars are refused in the Vault config",
+			vault:    "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\n",
+			problems: []string{vaultPath + `: calendars: only allowed in the user config, since feed URLs are secrets`},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,7 +190,7 @@ task_format = "bogus"
 			if tt.want != nil {
 				tt.want(&want)
 			}
-			if cfg != want {
+			if !reflect.DeepEqual(cfg, want) {
 				t.Errorf("cfg = %+v\nwant  %+v", cfg, want)
 			}
 			if !equal(problems, tt.problems) {

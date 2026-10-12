@@ -188,6 +188,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m, cmd = m.grepTick(msg)
 	case grepResultMsg:
 		m = m.grepResult(msg)
+	case meetingsMsg:
+		m = m.meetingsArrived(msg)
 	case indexSyncMsg:
 		if msg.gen == m.syncGen {
 			m = m.syncIndex()

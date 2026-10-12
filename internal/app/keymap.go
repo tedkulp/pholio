@@ -43,6 +43,7 @@ const (
 	actTreeDelete    action = "tree-delete"
 	actTasks         action = "tasks"
 	actEditTask      action = "edit-task"
+	actMeetings      action = "meetings"
 	actHelp          action = "help"
 )
 
@@ -104,6 +105,7 @@ var bindings = []binding{
 	{scopeLeader, "n", actNewNote, "new"},
 	{scopeLeader, "t", actTasks, "tasks"},
 	{scopeLeader, "T", actEditTask, "edit Task"},
+	{scopeLeader, "m", actMeetings, "meetings"},
 	{scopeLeader, "q", actQuit, "quit"},
 	{scopeLeader, "?", actHelp, "help"},
 
@@ -149,6 +151,7 @@ var exCommands = []exCommand{
 	{"delete", actDeleteNote, "delete Note"},
 	{"tasks", actTasks, "tasks"},
 	{"task", actEditTask, "edit Task"},
+	{"meetings", actMeetings, "meetings"},
 }
 
 // handler runs an action. arg is an ex command's argument, else "".
@@ -188,6 +191,7 @@ func init() {
 		actTreeDelete:    func(m Model, _ string) (Model, tea.Cmd) { return m.treeDelete() },
 		actTasks:         func(m Model, _ string) (Model, tea.Cmd) { return m.showTaskList(taskView{}) },
 		actEditTask:      func(m Model, _ string) (Model, tea.Cmd) { return m.editTaskAtCursor() },
+		actMeetings:      func(m Model, _ string) (Model, tea.Cmd) { return m.showMeetings() },
 		actHelp:          func(m Model, _ string) (Model, tea.Cmd) { return m.showHelp(), nil },
 	}
 }

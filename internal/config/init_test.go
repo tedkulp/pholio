@@ -77,7 +77,7 @@ func TestInitConfigListsEveryVaultKeyAtItsDefault(t *testing.T) {
 	for _, v := range variants {
 		fsys := seamtest.NewMemFS(map[string]string{"/vault/.pholio/config.toml": v})
 		cfg, problems := config.Load(fsys, dirs, "/vault")
-		if len(problems) != 0 || cfg != defaults() {
+		if len(problems) != 0 || !reflect.DeepEqual(cfg, defaults()) {
 			t.Errorf("loading:\n%s\ngot %+v, problems %v", v, cfg, problems)
 		}
 	}

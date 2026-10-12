@@ -83,6 +83,7 @@ type Model struct {
 
 	recent   []string    // Notes opened this session, newest first (find.go)
 	complete *completion // the [[ popup (complete.go)
+	feeds    *feeds      // the calendars' Meetings (meetings.go)
 }
 
 // New opens the Note at path. A missing file opens as an empty buffer, and
@@ -96,6 +97,7 @@ func New(deps Deps, path string) (Model, error) {
 		deps: deps, vault: filepath.Dir(path), wrap: true, conceal: true,
 		sideOn: true, sideW: config.DefaultState().SidebarWidth,
 		exq: &exQueue{}, appearance: defaultAppearance(),
+		feeds: &feeds{byURL: map[string]*feed{}},
 	}
 	file, e, err := m.openEngine(path)
 	if err != nil {
@@ -144,9 +146,9 @@ func (m Model) rel(path string) string {
 	return filepath.Base(path)
 }
 
-// Init implements tea.Model: it starts listening for watcher Notices and
-// scanning the Vault index.
-func (m Model) Init() tea.Cmd { return tea.Batch(m.listen(), m.scanIndex()) }
+// Init implements tea.Model: it starts listening for watcher Notices,
+// scanning the Vault index and fetching the calendars.
+func (m Model) Init() tea.Cmd { return tea.Batch(m.listen(), m.scanIndex(), m.fetchFeeds(false)) }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

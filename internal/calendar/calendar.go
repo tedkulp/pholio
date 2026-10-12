@@ -5,11 +5,15 @@ package calendar
 import (
 	"bytes"
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -72,7 +76,9 @@ const Timeout = 15 * time.Second
 
 // Fetch downloads the feed at url and parses its Meetings. Its errors are
 // short enough for the picker: "HTTP 401", "timed out", "not a calendar".
-func Fetch(client *http.Client, url string) ([]Meeting, error) {
+// With a cache dir, a body that parses replaces url's cache file there; a
+// bad one leaves it alone.
+func Fetch(client *http.Client, url, dir string) ([]Meeting, error) {
 	resp, err := client.Get(url)
 	if err == nil {
 		defer func() { _ = resp.Body.Close() }()
@@ -81,18 +87,75 @@ func Fetch(client *http.Client, url string) ([]Meeting, error) {
 		}
 		var body []byte
 		if body, err = io.ReadAll(resp.Body); err == nil {
-			body = bytes.TrimSpace(bytes.TrimPrefix(body, []byte("\xef\xbb\xbf")))
-			ms, err := Parse(body)
-			if err != nil || !bytes.HasPrefix(body, []byte("BEGIN:VCALENDAR")) {
-				return nil, errors.New("not a calendar")
+			ms, err := parseFeed(body)
+			if err == nil && dir != "" {
+				// The cache only speeds up the next start; failing to
+				// write it doesn't fail the fetch.
+				_ = writeCache(cachePath(dir, url), body)
 			}
-			return ms, nil
+			return ms, err
 		}
 	}
 	if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
 		return nil, errors.New("timed out")
 	}
 	return nil, err
+}
+
+// parseFeed is Parse for a body that must be a calendar.
+func parseFeed(body []byte) ([]Meeting, error) {
+	body = bytes.TrimSpace(bytes.TrimPrefix(body, []byte("\xef\xbb\xbf")))
+	ms, err := Parse(body)
+	if err != nil || !bytes.HasPrefix(body, []byte("BEGIN:VCALENDAR")) {
+		return nil, errors.New("not a calendar")
+	}
+	return ms, nil
+}
+
+// Cached is url's Meetings from the cache in dir, and when they were
+// fetched.
+func Cached(dir, url string) ([]Meeting, time.Time, error) {
+	path := cachePath(dir, url)
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	ms, err := parseFeed(body)
+	return ms, fi.ModTime(), err
+}
+
+// cachePath is url's cache file in dir. Feed URLs are secrets, so the
+// name is a hash.
+func cachePath(dir, url string) string {
+	sum := sha256.Sum256([]byte(url))
+	return filepath.Join(dir, hex.EncodeToString(sum[:8])+".ics")
+}
+
+// writeCache replaces path with body, readable by the user only. The
+// file's mtime is the fetch time.
+func writeCache(path string, body []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".fetch-*") // mode 0600
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(body)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+	return err
 }
 
 // On is the Meetings that start on day (midnight to midnight in day's

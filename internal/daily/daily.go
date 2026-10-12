@@ -15,13 +15,19 @@ type Vars struct {
 	Day   time.Time // the Note's own day: {{date}}, {{yesterday}}, {{tomorrow}}
 	Now   time.Time // the wall clock: {{time}}
 	Title string    // the Note's name without .md: {{title}}
+	// Times are more time placeholders, such as a Meeting's {{start}}, with
+	// :FMT and HH:mm as the default.
+	Times map[string]time.Time
+	// Text are more plain placeholders, such as a Meeting's {{daily}}.
+	Text map[string]string
 }
 
 var placeholder = regexp.MustCompile(`\{\{\s*(\w+)(?::([^}]*))?\s*\}\}`)
 
 // Render expands the placeholders in a Template: {{date}}, {{date:FMT}},
 // {{time}}, {{time:FMT}}, {{title}}, {{yesterday}} and {{tomorrow}}.
-// Formats use moment.js tokens. Unknown placeholders are left as they are.
+// Formats use moment.js tokens. v.Times and v.Text add more. Unknown
+// placeholders are left as they are.
 func Render(tmpl string, v Vars) string {
 	return placeholder.ReplaceAllStringFunc(tmpl, func(s string) string {
 		m := placeholder.FindStringSubmatch(s)
@@ -43,6 +49,12 @@ func Render(tmpl string, v Vars) string {
 			return dates.Format(v.Day.AddDate(0, 0, -1), withDefault("YYYY-MM-DD"))
 		case "tomorrow":
 			return dates.Format(v.Day.AddDate(0, 0, 1), withDefault("YYYY-MM-DD"))
+		}
+		if t, ok := v.Times[name]; ok {
+			return dates.Format(t, withDefault("HH:mm"))
+		}
+		if text, ok := v.Text[name]; ok {
+			return text
 		}
 		return s
 	})

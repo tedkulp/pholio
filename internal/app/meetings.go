@@ -37,9 +37,10 @@ type feed struct {
 
 // meetingState is an open Meeting picker.
 type meetingState struct {
-	open   bool      // the picker is still up
-	day    time.Time // the day shown
-	failed []string  // one status line per failing calendar
+	open   bool              // the picker is still up
+	day    time.Time         // the day shown
+	failed []string          // one status line per failing calendar
+	notes  map[string]string // meeting_uid → Meeting Note path
 }
 
 // meetingRow is a Meeting and the name of the calendar it came from.
@@ -109,7 +110,7 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 		return m.say("no calendars: add [[calendars]] to "+where, true), nil
 	}
 	day := m.today()
-	st := &meetingState{open: true, day: day}
+	st := &meetingState{open: true, day: day, notes: m.meetingNotes()}
 	m.feeds.picker = st
 	cmd := m.fetchFeeds(false)
 	p := palette.New("Meetings · "+day.Format("Mon 2 Jan")+" (today)", palette.List).
@@ -120,6 +121,9 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 		switch {
 		case ev.Kind == palette.Closed || ev.Kind == palette.Chosen:
 			st.open = false
+			if r, ok := ev.Item.Value.(meetingRow); ok && ev.Kind == palette.Chosen {
+				return m.openMeeting(r.Meeting)
+			}
 		case ev.Kind == palette.Key && ev.Key == "r":
 			cmd := m.fetchFeeds(true)
 			m.overlay.p = m.meetingItems(m.overlay.p, st)
@@ -171,10 +175,12 @@ func (m Model) meetingItems(p palette.Model, st *meetingState) palette.Model {
 	loc := st.day.Location()
 	items := make([]palette.Item, len(rows))
 	for i, r := range rows {
+		gutter := "  "
+		if _, ok := st.notes[meetingUID(r.Meeting)]; ok {
+			gutter = "✓ "
+		}
 		items[i] = palette.Item{
-			// The two-cell gutter is blank; a later ticket marks Meetings
-			// that have a Meeting Note there.
-			Text:   "  " + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
+			Text:   gutter + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
 			Detail: r.cal,
 			Value:  r,
 		}

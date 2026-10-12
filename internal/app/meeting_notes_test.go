@@ -141,6 +141,26 @@ func TestAnUntitledMeetingIsNamedMeeting(t *testing.T) {
 	}
 }
 
+func TestAMovedOccurrenceKeepsItsMeetingNote(t *testing.T) {
+	// A daily Design review from 14:00 on meetingDay, whose first
+	// occurrence was moved to 16:00.
+	series := strings.Replace(vevent("review@example.test", "Design review", 14, 0, 60), "SUMMARY:", "RRULE:FREQ=DAILY\r\nSUMMARY:", 1)
+	moved := strings.Replace(vevent("review@example.test", "Design review", 16, 0, 60), "SUMMARY:",
+		"RECURRENCE-ID:"+strings.TrimPrefix(reviewUID, "review@example.test/")+"\r\nSUMMARY:", 1)
+	existing := "/vault/meetings/notes-from-review.md"
+	m, _ := meetingNotesVaultWith(t, series+moved, map[string]string{
+		existing: "---\nmeeting_uid: \"" + reviewUID + "\"\n---\n# Review\n",
+	})
+
+	m = openMeetings(t, m)
+	if got := m.PaletteSelected(); got != "✓ 16:00–17:00  Design review" {
+		t.Errorf("row = %q, want the moved occurrence, ticked", got)
+	}
+	if m = press(m, enter); m.Path() != existing {
+		t.Errorf("opened %s, want %s", m.Path(), existing)
+	}
+}
+
 func TestAMeetingWithAMeetingNoteIsTickedAndReopened(t *testing.T) {
 	existing := "/vault/meetings/notes-from-review.md"
 	m, _ := meetingNotesVault(t, map[string]string{

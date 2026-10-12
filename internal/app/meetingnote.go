@@ -24,9 +24,10 @@ import (
 const meetingTemplate = "# {{title}}\n\n{{start}}–{{end}} · {{daily}}\nAttendees: {{attendees}}\nLocation: {{location}}\nLink: {{link}}\n\n## Notes\n"
 
 // meetingUID is a Meeting's identity as written in its Meeting Note's
-// meeting_uid: line: its UID and its start in UTC.
+// meeting_uid: line: its UID and its original start in UTC, so a moved
+// occurrence keeps its Meeting Note.
 func meetingUID(mt calendar.Meeting) string {
-	return mt.UID + "/" + mt.Start.UTC().Format("20060102T150405Z")
+	return mt.UID + "/" + mt.Original.Format("20060102T150405Z")
 }
 
 // meetingNotes maps the meeting_uid of each Meeting Note in meetings_folder

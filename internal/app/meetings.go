@@ -19,7 +19,8 @@ type meetingState struct {
 	day     time.Time // the day shown
 	pending int       // feeds still being fetched
 	rows    []meetingRow
-	failed  []string // "name: why", one per failing calendar
+	failed  []string          // "name: why", one per failing calendar
+	notes   map[string]string // meeting_uid → Meeting Note path
 }
 
 // meetingRow is a Meeting and the name of the calendar it came from.
@@ -48,7 +49,7 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 		return m.say("no calendars: add [[calendars]] to "+where, true), nil
 	}
 	day := m.today()
-	st := &meetingState{open: true, day: day, pending: len(cals)}
+	st := &meetingState{open: true, day: day, pending: len(cals), notes: m.meetingNotes()}
 	p := palette.New("Meetings · "+day.Format("Mon 2 Jan")+" (today)", palette.List).
 		WithPlaceholder("/ to filter").
 		WithHint("/ filter · esc close").
@@ -56,6 +57,9 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 	m = m.showPalette(meetingItems(p, st), func(m Model, ev palette.Event) (Model, tea.Cmd) {
 		if ev.Kind == palette.Closed || ev.Kind == palette.Chosen {
 			st.open = false
+		}
+		if r, ok := ev.Item.Value.(meetingRow); ok && ev.Kind == palette.Chosen {
+			return m.openMeeting(r.Meeting)
 		}
 		return m, nil
 	})
@@ -93,10 +97,12 @@ func meetingItems(p palette.Model, st *meetingState) palette.Model {
 	loc := st.day.Location()
 	items := make([]palette.Item, len(st.rows))
 	for i, r := range st.rows {
+		gutter := "  "
+		if _, ok := st.notes[meetingUID(r.Meeting)]; ok {
+			gutter = "✓ "
+		}
 		items[i] = palette.Item{
-			// The two-cell gutter is blank; a later ticket marks Meetings
-			// that have a Meeting Note there.
-			Text:   "  " + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
+			Text:   gutter + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
 			Detail: r.cal,
 			Value:  r,
 		}

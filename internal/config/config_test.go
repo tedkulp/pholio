@@ -29,6 +29,8 @@ func defaults() config.Config {
 		DailyTemplate:      "templates/daily.md",
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
+		MeetingsFolder:     "meetings",
+		MeetingTemplate:    "templates/meeting.md",
 		TasksHeading:       "## Tasks",
 		TaskFormat:         index.Dataview,
 	}
@@ -70,8 +72,11 @@ zettel_folder = "z"
 new_note_folder = "inbox"
 tasks_heading = "### Todo"
 task_format = "emoji"
+meetings_folder = "work/meetings"
+meeting_template = "tpl/meeting.md"
 `,
 			want: func(c *config.Config) {
+				c.MeetingsFolder, c.MeetingTemplate = "work/meetings", "tpl/meeting.md"
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
 				c.DailySubfolder, c.TaskFormat = "YYYY/MM", index.Emoji

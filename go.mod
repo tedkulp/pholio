@@ -15,6 +15,7 @@ require (
 	github.com/charmbracelet/x/vt v0.0.0-20261004011457-ad85c59fdf4e
 	github.com/clipperhouse/uax29/v2 v2.7.0
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/teambition/rrule-go v1.8.2
 	golang.org/x/image v0.47.0
 )
 

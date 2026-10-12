@@ -34,6 +34,7 @@ var vaultKeyDocs = []struct {
 	{"tasks_heading", "Heading the Task List adds new Tasks under.", func(c Config) string { return strconv.Quote(c.TasksHeading) }},
 	{"meetings_folder", "Folder that holds Meeting Notes.", func(c Config) string { return strconv.Quote(c.MeetingsFolder) }},
 	{"meeting_template", "Template for new Meeting Notes; a built-in one is used when the file is missing.", func(c Config) string { return strconv.Quote(c.MeetingTemplate) }},
+	{"meetings_heading", "Daily Note heading that new Meeting Notes are linked under.", func(c Config) string { return strconv.Quote(c.MeetingsHeading) }},
 	{"task_format", "Task Format for new Task Metadata: \"dataview\" ([due:: 2026-10-10]) or \"emoji\" (📅 2026-10-10).", func(c Config) string { return strconv.Quote(string(c.TaskFormat)) }},
 }
 

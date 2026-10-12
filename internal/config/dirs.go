@@ -8,6 +8,8 @@ type Dirs struct {
 	ConfigHome string
 	// StateHome is $XDG_STATE_HOME, or ~/.local/state.
 	StateHome string
+	// CacheHome is $XDG_CACHE_HOME, or ~/.cache.
+	CacheHome string
 }
 
 // DirsFromEnv resolves Dirs from the XDG variables, falling back to home.
@@ -23,5 +25,6 @@ func DirsFromEnv(getenv func(string) string, home string) Dirs {
 	return Dirs{
 		ConfigHome: pick("XDG_CONFIG_HOME", ".config"),
 		StateHome:  pick("XDG_STATE_HOME", ".local", "state"),
+		CacheHome:  pick("XDG_CACHE_HOME", ".cache"),
 	}
 }

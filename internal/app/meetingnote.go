@@ -116,9 +116,11 @@ func (m Model) meetingNoteText(tmpl string, mt calendar.Meeting) string {
 		Title: title,
 		Times: map[string]time.Time{"start": start, "end": mt.End.In(now.Location())},
 		Text: map[string]string{
-			"daily": "[[" + start.Format(dates.ISO) + "]]",
-			// Filled from the feed by a later ticket.
-			"attendees": "", "location": "", "link": "", "description": "",
+			"daily":       "[[" + start.Format(dates.ISO) + "]]",
+			"attendees":   strings.Join(mt.Attendees, ", "),
+			"location":    mt.Location,
+			"link":        mt.Link,
+			"description": mt.Description,
 		},
 	})
 	uid := "meeting_uid: " + strconv.Quote(meetingUID(mt)) + "\n"

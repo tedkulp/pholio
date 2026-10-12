@@ -55,6 +55,19 @@ func serve(t *testing.T, h http.HandlerFunc) string {
 	return s.URL
 }
 
+func TestParseGivesEachMeetingTheCalendarLevelColor(t *testing.T) {
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//pholio//test//EN\r\nCOLOR:lightcoral\r\n" +
+		"X-APPLE-CALENDAR-COLOR:#0000ff\r\n" +
+		"BEGIN:VEVENT\r\nUID:a@example.test\r\nDTSTAMP:20261001T000000Z\r\nDTSTART:20261012T130000Z\r\nSUMMARY:Standup\r\nEND:VEVENT\r\n" +
+		"END:VCALENDAR\r\n"
+
+	ms, err := calendar.Parse([]byte(body))
+
+	if err != nil || len(ms) != 1 || ms[0].CalendarColor != "lightcoral" {
+		t.Errorf("Parse = %+v, %v; want one Meeting with CalendarColor lightcoral", ms, err)
+	}
+}
+
 func TestFetchReadsTheFeedsMeetings(t *testing.T) {
 	body, err := os.ReadFile("testdata/day.ics")
 	if err != nil {

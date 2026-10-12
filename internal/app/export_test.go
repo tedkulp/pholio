@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tedkulp/pholio/internal/engine"
@@ -52,6 +54,27 @@ func (m Model) PaletteSlots() []string {
 	var out []string
 	for _, it := range m.overlay.p.Visible() {
 		out = append(out, string(it.Slot))
+	}
+	return out
+}
+
+// PaletteDetailStyles are how the open palette's visible rows draw their
+// Detail when unselected: a raw colour as "#rrggbb", else the theme slot.
+func (m Model) PaletteDetailStyles() []string {
+	if m.overlay == nil {
+		return nil
+	}
+	var out []string
+	for _, it := range m.overlay.p.Visible() {
+		switch {
+		case it.DetailColor != nil:
+			r, g, b, _ := it.DetailColor.RGBA()
+			out = append(out, fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8))
+		case it.DetailSlot != "":
+			out = append(out, string(it.DetailSlot))
+		default:
+			out = append(out, "overlay.hint")
+		}
 	}
 	return out
 }

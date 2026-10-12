@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	ics "github.com/arran4/golang-ical"
@@ -22,6 +23,9 @@ type Meeting struct {
 	Title string
 	Start time.Time
 	End   time.Time
+	// CalendarColor is the feed's calendar-level COLOR (RFC 7986, a CSS
+	// colour name) as written, "" if none.
+	CalendarColor string
 }
 
 // Parse reads the Meetings of an ICS body. All-day Meetings
@@ -34,6 +38,12 @@ func Parse(body []byte) ([]Meeting, error) {
 	cal, err := ics.ParseCalendarWithOptions(bytes.NewReader(body), ics.WithWindowsTimezoneMapping())
 	if err != nil {
 		return nil, err
+	}
+	color := ""
+	for _, p := range cal.CalendarProperties {
+		if p.IANAToken == string(ics.PropertyColor) {
+			color = strings.TrimSpace(p.Value)
+		}
 	}
 	var ms []Meeting
 	for _, ev := range cal.Events() {
@@ -48,7 +58,7 @@ func Parse(body []byte) ([]Meeting, error) {
 		if err != nil {
 			end = start
 		}
-		m := Meeting{UID: ev.Id(), Start: start, End: end}
+		m := Meeting{UID: ev.Id(), Start: start, End: end, CalendarColor: color}
 		if p := ev.GetProperty(ics.ComponentPropertySummary); p != nil {
 			m.Title = p.Value
 		}

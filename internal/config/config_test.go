@@ -166,6 +166,14 @@ task_format = "bogus"
 			},
 		},
 		{
+			name: "a bad calendar color is dropped, keeping the calendar",
+			user: "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\ncolor = \"blurple\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{{Name: "work", URL: "https://example.test/work.ics"}}
+			},
+			problems: []string{userPath + `: calendars[1]: color: want a CSS colour name or "#rrggbb", got "blurple"`},
+		},
+		{
 			name:     "calendars must be tables",
 			user:     "calendars = \"work\"\n",
 			problems: []string{userPath + `: calendars: want [[calendars]] tables, got "work"`},

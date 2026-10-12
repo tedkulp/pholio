@@ -24,6 +24,7 @@ import (
 	"github.com/tedkulp/pholio/internal/dates"
 	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
+	"github.com/tedkulp/pholio/internal/theme"
 )
 
 // Config is the merged result of the user and Vault config files.
@@ -63,7 +64,8 @@ type Config struct {
 type Calendar struct {
 	Name string
 	URL  string
-	// Color is the colour as written, "" if unset.
+	// Color is a CSS colour name or "#rrggbb" as written, "" if unset or
+	// invalid.
 	Color string
 }
 
@@ -217,6 +219,10 @@ func calendars(c *Config, v any) []string {
 			default:
 				*f = s
 			}
+		}
+		if _, err := theme.ParseCSSColor(cal.Color); cal.Color != "" && err != nil {
+			problems = append(problems, fmt.Sprintf("%scolor: want a CSS colour name or \"#rrggbb\", got %q", at, cal.Color))
+			cal.Color = ""
 		}
 		switch {
 		case cal.Name == "":

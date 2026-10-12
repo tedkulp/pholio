@@ -21,7 +21,12 @@ var meetingDay = time.Date(2026, 10, 12, 8, 0, 0, 0, time.Local)
 
 // vevent is a synthetic Meeting starting at hh:mm local on meetingDay.
 func vevent(uid, title string, hh, mm, minutes int) string {
-	start := time.Date(2026, 10, 12, hh, mm, 0, 0, time.Local).UTC()
+	return veventOn(12, uid, title, hh, mm, minutes)
+}
+
+// veventOn is vevent on day (of October 2026).
+func veventOn(day int, uid, title string, hh, mm, minutes int) string {
+	start := time.Date(2026, 10, day, hh, mm, 0, 0, time.Local).UTC()
 	end := start.Add(time.Duration(minutes) * time.Minute)
 	return "BEGIN:VEVENT\r\nUID:" + uid + "\r\nDTSTAMP:20261001T000000Z\r\n" +
 		"DTSTART:" + start.Format("20060102T150405Z") + "\r\nDTEND:" + end.Format("20060102T150405Z") + "\r\n" +
@@ -145,6 +150,94 @@ func TestAnEmptyDaySaysNoMeetings(t *testing.T) {
 	m = drive(t, m, cmd)
 
 	viewHas(t, m, "no Meetings")
+}
+
+// openMeetings opens the Meeting picker and runs its fetches.
+func openMeetings(t *testing.T, m app.Model) app.Model {
+	t.Helper()
+	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
+	return drive(t, m, cmd)
+}
+
+func TestDayKeysMoveThePickerBetweenDays(t *testing.T) {
+	m := meetingsApp(t, calendarsConfig("work", feed(t, 200, vcalendar(
+		veventOn(11, "sun@example.test", "Brunch", 11, 0, 60),
+		veventOn(12, "mon@example.test", "Standup", 9, 30, 15),
+		veventOn(13, "tue@example.test", "Retro", 15, 0, 60),
+		veventOn(14, "wed@example.test", "Lunch", 12, 0, 60),
+	))))
+	m = openMeetings(t, m)
+
+	steps := []struct {
+		key   tea.KeyPressMsg
+		title string
+		rows  []string
+	}{
+		{tea.KeyPressMsg{Code: 'l', Text: "l"}, "Meetings · Tue 13 Oct (tomorrow)", []string{" |   15:00–16:00  Retro | work"}},
+		{tea.KeyPressMsg{Code: tea.KeyRight}, "Meetings · Wed 14 Oct ─", []string{" |   12:00–13:00  Lunch | work"}},
+		{tea.KeyPressMsg{Code: 't', Text: "t"}, "Meetings · Mon 12 Oct (today)", []string{" |   09:30–09:45  Standup | work"}},
+		{tea.KeyPressMsg{Code: 'h', Text: "h"}, "Meetings · Sun 11 Oct (yesterday)", []string{" |   11:00–12:00  Brunch | work"}},
+		{tea.KeyPressMsg{Code: tea.KeyLeft}, "Meetings · Sat 10 Oct ─", nil},
+	}
+	for _, s := range steps {
+		m = press(m, s.key)
+		viewHas(t, m, s.title)
+		if got := m.PaletteRows(); !reflect.DeepEqual(got, s.rows) {
+			t.Errorf("after %s: rows = %q, want %q", s.key, got, s.rows)
+		}
+	}
+	viewHas(t, m, "no Meetings")
+}
+
+func TestEndedMeetingsAreDimmed(t *testing.T) {
+	// meetingDay is 08:00.
+	m := meetingsApp(t, "[[calendars]]\nname = \"work\"\ncolor = \"lightcoral\"\nurl = \""+feed(t, 200, vcalendar(
+		vevent("early@example.test", "Early call", 7, 0, 30),
+		vevent("now@example.test", "Running late", 7, 30, 60),
+		vevent("later@example.test", "Standup", 9, 30, 15),
+	))+"\"\n")
+	m = openMeetings(t, m)
+
+	if got, want := m.PaletteSlots(), []string{"overlay.hint", "", ""}; !reflect.DeepEqual(got, want) {
+		t.Errorf("slots = %q, want %q", got, want)
+	}
+	if got, want := m.PaletteDetailStyles(), []string{"overlay.hint", "#f08080", "#f08080"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Detail styles = %q, want %q", got, want)
+	}
+}
+
+func TestCalendarColourComesFromConfigThenTheFeed(t *testing.T) {
+	colored := func(color, uid string, hh int) string {
+		return "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//pholio//test//EN\r\n" + color +
+			vevent(uid, uid, hh, 0, 30) + "END:VCALENDAR\r\n"
+	}
+	cfg := "[[calendars]]\nname = \"a\"\ncolor = \"#1e90ff\"\nurl = \"" + feed(t, 200, colored("COLOR:steelblue\r\n", "a", 9)) + "\"\n" +
+		"[[calendars]]\nname = \"b\"\nurl = \"" + feed(t, 200, colored("COLOR:steelblue\r\n", "b", 10)) + "\"\n" +
+		"[[calendars]]\nname = \"c\"\nurl = \"" + feed(t, 200, colored("COLOR:notacolour\r\n", "c", 11)) + "\"\n" +
+		"[[calendars]]\nname = \"d\"\nurl = \"" + feed(t, 200, colored("X-APPLE-CALENDAR-COLOR:#ff0000\r\n", "d", 12)) + "\"\n"
+	m := openMeetings(t, meetingsApp(t, cfg))
+
+	want := []string{"#1e90ff", "#4682b4", "overlay.hint", "overlay.hint"}
+	if got := m.PaletteDetailStyles(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Detail styles = %q, want %q", got, want)
+	}
+}
+
+func TestLongTitlesTruncateBeforeTheCalendar(t *testing.T) {
+	long := strings.Repeat("Quarterly planning ", 8)
+	m := openMeetings(t, meetingsApp(t, calendarsConfig("work", feed(t, 200, vcalendar(
+		vevent("a@example.test", "Standup", 9, 0, 15),
+		vevent("b@example.test", long, 10, 0, 60),
+	)))))
+
+	viewHas(t, m, "10:00–11:00  Quarterly planning")
+	viewHas(t, m, "… work")
+}
+
+func TestThePickerHintListsItsKeys(t *testing.T) {
+	m := openMeetings(t, meetingsApp(t, calendarsConfig("work", feed(t, 200, vcalendar()))))
+
+	viewHas(t, m, "h/l day · t today · r refresh · enter open/create · esc close")
 }
 
 func TestNoCalendarsSaysWhereToAddThem(t *testing.T) {

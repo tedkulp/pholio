@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"image/color"
 	"strconv"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+	"golang.org/x/image/colornames"
 )
 
 // ParseColor parses a literal colour: "#rrggbb", "#rgb" or an ANSI number
@@ -22,6 +24,22 @@ func ParseColor(s string) (color.Color, error) {
 		return nil, fmt.Errorf("bad colour %q", s)
 	}
 	return lipgloss.Color(s), nil
+}
+
+// ParseCSSColor parses a CSS colour: a name such as "lightcoral" (any
+// case) or "#rrggbb". Calendar colours are written this way.
+func ParseCSSColor(s string) (color.Color, error) {
+	name := strings.ToLower(s)
+	if c, ok := colornames.Map[name]; ok {
+		return c, nil
+	}
+	if name == "rebeccapurple" { // CSS 4; colornames stops at SVG 1.1
+		return color.RGBA{0x66, 0x33, 0x99, 0xff}, nil
+	}
+	if len(s) == 7 && s[0] == '#' && isHex(s[1:]) {
+		return lipgloss.Color(s), nil
+	}
+	return nil, fmt.Errorf("bad colour %q: want a CSS colour name or #rrggbb", s)
 }
 
 func isHex(s string) bool {

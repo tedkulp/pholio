@@ -143,7 +143,18 @@ color = "steelblue"   # optional: a CSS colour name or "#rrggbb"
 
 Calendars are fetched in the background at startup and again when the picker opens if they're over 15 minutes old. The last good copy of each is cached, so the picker opens with Meetings at once and still works offline; a calendar that can't be fetched says why on the picker's info line.
 
-Meeting templates can use the daily placeholders (`{{date}}` is the Meeting's day and `{{title}}` its title) plus `{{start}}`, `{{end}}` (both taking `:FMT`, `HH:mm` by default), `{{daily}}` (a Link to that day's Daily Note), `{{attendees}}`, `{{location}}`, `{{link}}` (the video-call link) and `{{description}}`.
+Meeting templates can use the daily placeholders (`{{date}}` is the Meeting's day and `{{title}}` its title) plus `{{start}}`, `{{end}}` (both taking `:FMT`, `HH:mm` by default), `{{daily}}` (a Link to that day's Daily Note), `{{attendees}}`, `{{location}}`, `{{link}}` (the video-call link) and `{{description}}`. pholio adds the `meeting_uid` line itself, so a Template doesn't need one. The built-in Template, to copy to `templates/meeting.md` as a starting point:
+
+```markdown
+# {{title}}
+
+{{start}}–{{end}} · {{daily}}
+Attendees: {{attendees}}
+Location: {{location}}
+Link: {{link}}
+
+## Notes
+```
 
 ## Configuration
 

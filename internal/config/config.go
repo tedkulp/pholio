@@ -61,6 +61,9 @@ type Config struct {
 	// MeetingTemplate is the meeting Template; a built-in one is used when
 	// the file is missing.
 	MeetingTemplate string
+	// MeetingsHeading is the Daily Note heading Meeting Note back-links go
+	// under.
+	MeetingsHeading string
 	// TaskFormat is the Task Format new Task Metadata is written in.
 	TaskFormat index.Format
 }
@@ -89,6 +92,7 @@ func Default() Config {
 		TasksHeading:       "## Tasks",
 		MeetingsFolder:     "meetings",
 		MeetingTemplate:    "templates/meeting.md",
+		MeetingsHeading:    "## Meetings",
 		TaskFormat:         index.Dataview,
 	}
 }
@@ -157,6 +161,7 @@ var vaultKeys = map[string]setter{
 	"task_format":      taskFormat,
 	"meetings_folder":  str(func(c *Config) *string { return &c.MeetingsFolder }, inVault),
 	"meeting_template": str(func(c *Config) *string { return &c.MeetingTemplate }, inVaultFile),
+	"meetings_heading": str(func(c *Config) *string { return &c.MeetingsHeading }, heading),
 }
 
 func apply(fsys seam.FS, file string, cfg *Config, user bool, tables ...map[string]setter) []string {

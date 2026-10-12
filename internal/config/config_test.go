@@ -31,6 +31,7 @@ func defaults() config.Config {
 		NewNoteFolder:      "",
 		MeetingsFolder:     "meetings",
 		MeetingTemplate:    "templates/meeting.md",
+		MeetingsHeading:    "## Meetings",
 		TasksHeading:       "## Tasks",
 		TaskFormat:         index.Dataview,
 	}
@@ -74,9 +75,10 @@ tasks_heading = "### Todo"
 task_format = "emoji"
 meetings_folder = "work/meetings"
 meeting_template = "tpl/meeting.md"
+meetings_heading = "### Calls"
 `,
 			want: func(c *config.Config) {
-				c.MeetingsFolder, c.MeetingTemplate = "work/meetings", "tpl/meeting.md"
+				c.MeetingsFolder, c.MeetingTemplate, c.MeetingsHeading = "work/meetings", "tpl/meeting.md", "### Calls"
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
 				c.DailySubfolder, c.TaskFormat = "YYYY/MM", index.Emoji
@@ -116,6 +118,7 @@ meeting_template = "tpl/meeting.md"
 daily_folder = "/abs"
 zettel_folder = "../out"
 tasks_heading = "Tasks"
+meetings_heading = "Meetings"
 task_format = "bogus"
 `,
 			want: func(c *config.Config) { c.Conceal = false },
@@ -124,6 +127,7 @@ task_format = "bogus"
 				userPath + `: theme: want a string, got 3`,
 				vaultPath + `: daily_folder: want a folder inside the Vault, got "/abs"`,
 				vaultPath + `: day_starts_at: want "HH:MM", got "25:00"`,
+				vaultPath + `: meetings_heading: want a markdown heading like "## Tasks", got "Meetings"`,
 				vaultPath + `: task_format: want "dataview" or "emoji", got "bogus"`,
 				vaultPath + `: tasks_heading: want a markdown heading like "## Tasks", got "Tasks"`,
 				vaultPath + `: zettel_folder: want a folder inside the Vault, got "../out"`,

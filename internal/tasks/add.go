@@ -9,9 +9,20 @@ import (
 // AddAt is where the Task List's `a` puts a new Task in a Note's lines
 // (without their newlines): after the last Task in the section under
 // heading, right under heading when the section has no Task, or at the end
-// when there is no such heading. The section runs to the next heading of
-// the same or a higher level. Fenced code is skipped.
+// when there is no such heading.
 func AddAt(lines []string, heading string) int {
+	at := SectionAt(lines, heading, func(l string) bool { _, ok := index.ParseTask(l); return ok })
+	if at < 0 {
+		return len(lines)
+	}
+	return at
+}
+
+// SectionAt is where a new item goes in the section under heading: after
+// its last line that is an item, else right under heading. It is -1 when
+// there is no such heading. The section runs to the next heading of the
+// same or a higher level. Fenced code is skipped.
+func SectionAt(lines []string, heading string, item func(string) bool) int {
 	heading = strings.TrimSpace(heading)
 	level := headingLevel(heading)
 	var f index.Fences
@@ -30,14 +41,9 @@ func AddAt(lines []string, heading string) int {
 				continue
 			}
 		}
-		if in {
-			if _, ok := index.ParseTask(l); ok {
-				at = i + 1
-			}
+		if in && item(l) {
+			at = i + 1
 		}
-	}
-	if at < 0 {
-		return len(lines)
 	}
 	return at
 }
@@ -54,6 +60,15 @@ func headingLevel(s string) int {
 // AddFile puts line into the file at path where AddAt says, keeping the
 // file's line endings, and writes it back.
 func AddFile(fsys FS, path, heading, line string) error {
+	return EditFile(fsys, path, func(lines []string) []string {
+		at := AddAt(lines, heading)
+		return append(lines[:at], append([]string{line}, lines[at:]...)...)
+	})
+}
+
+// EditFile rewrites the lines (without their newlines) of the file at path
+// with edit, keeping the file's line endings.
+func EditFile(fsys FS, path string, edit func([]string) []string) error {
 	data, err := fsys.ReadFile(path)
 	if err != nil {
 		return err
@@ -67,7 +82,5 @@ func AddFile(fsys FS, path, heading, line string) error {
 	if body := strings.TrimSuffix(strings.ReplaceAll(text, "\r\n", "\n"), "\n"); text != "" {
 		lines = strings.Split(body, "\n")
 	}
-	at := AddAt(lines, heading)
-	lines = append(lines[:at], append([]string{line}, lines[at:]...)...)
-	return fsys.WriteFile(path, []byte(strings.Join(lines, eol)+eol))
+	return fsys.WriteFile(path, []byte(strings.Join(edit(lines), eol)+eol))
 }

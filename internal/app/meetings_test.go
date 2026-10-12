@@ -152,13 +152,6 @@ func TestAnEmptyDaySaysNoMeetings(t *testing.T) {
 	viewHas(t, m, "no Meetings")
 }
 
-// openMeetings opens the Meeting picker and runs its fetches.
-func openMeetings(t *testing.T, m app.Model) app.Model {
-	t.Helper()
-	m, cmd := pressing(press(m, space), tea.KeyPressMsg{Code: 'm', Text: "m"})
-	return drive(t, m, cmd)
-}
-
 func TestDayKeysMoveThePickerBetweenDays(t *testing.T) {
 	m := meetingsApp(t, calendarsConfig("work", feed(t, 200, vcalendar(
 		veventOn(11, "sun@example.test", "Brunch", 11, 0, 60),

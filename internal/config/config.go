@@ -56,6 +56,11 @@ type Config struct {
 	// NewNoteFolder is Vault-relative; "" is the Vault root.
 	NewNoteFolder string
 	TasksHeading  string
+	// MeetingsFolder is where Meeting Notes are created.
+	MeetingsFolder string
+	// MeetingTemplate is the meeting Template; a built-in one is used when
+	// the file is missing.
+	MeetingTemplate string
 	// TaskFormat is the Task Format new Task Metadata is written in.
 	TaskFormat index.Format
 }
@@ -82,6 +87,8 @@ func Default() Config {
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
 		TasksHeading:       "## Tasks",
+		MeetingsFolder:     "meetings",
+		MeetingTemplate:    "templates/meeting.md",
 		TaskFormat:         index.Dataview,
 	}
 }
@@ -140,14 +147,16 @@ var userKeys = map[string]setter{
 }
 
 var vaultKeys = map[string]setter{
-	"day_starts_at":   dayStart,
-	"daily_folder":    str(func(c *Config) *string { return &c.DailyFolder }, inVault),
-	"daily_template":  str(func(c *Config) *string { return &c.DailyTemplate }, inVaultFile),
-	"daily_subfolder": str(func(c *Config) *string { return &c.DailySubfolder }, inVaultLayout),
-	"zettel_folder":   str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
-	"new_note_folder": str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
-	"tasks_heading":   str(func(c *Config) *string { return &c.TasksHeading }, heading),
-	"task_format":     taskFormat,
+	"day_starts_at":    dayStart,
+	"daily_folder":     str(func(c *Config) *string { return &c.DailyFolder }, inVault),
+	"daily_template":   str(func(c *Config) *string { return &c.DailyTemplate }, inVaultFile),
+	"daily_subfolder":  str(func(c *Config) *string { return &c.DailySubfolder }, inVaultLayout),
+	"zettel_folder":    str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
+	"new_note_folder":  str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
+	"tasks_heading":    str(func(c *Config) *string { return &c.TasksHeading }, heading),
+	"task_format":      taskFormat,
+	"meetings_folder":  str(func(c *Config) *string { return &c.MeetingsFolder }, inVault),
+	"meeting_template": str(func(c *Config) *string { return &c.MeetingTemplate }, inVaultFile),
 }
 
 func apply(fsys seam.FS, file string, cfg *Config, user bool, tables ...map[string]setter) []string {

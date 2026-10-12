@@ -17,11 +17,12 @@ import (
 
 // meetingState is shared by an open Meeting picker and its feed fetches.
 type meetingState struct {
-	open    bool         // the picker is still up
-	day     time.Time    // the day shown
-	pending int          // feeds still being fetched
-	rows    []meetingRow // every fetched Meeting, on any day
-	failed  []string     // "name: why", one per failing calendar
+	open    bool              // the picker is still up
+	day     time.Time         // the day shown
+	pending int               // feeds still being fetched
+	rows    []meetingRow      // every fetched Meeting, on any day
+	failed  []string          // "name: why", one per failing calendar
+	notes   map[string]string // meeting_uid → Meeting Note path
 }
 
 // meetingRow is a Meeting, the name of the calendar it came from and that
@@ -53,7 +54,7 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 		return m.say("no calendars: add [[calendars]] to "+where, true), nil
 	}
 	day := m.today()
-	st := &meetingState{open: true, day: day, pending: len(cals)}
+	st := &meetingState{open: true, day: day, pending: len(cals), notes: m.meetingNotes()}
 	p := palette.New("", palette.List).
 		WithPlaceholder("/ to filter").
 		WithHint("h/l day · t today · r refresh · enter open/create · esc close").
@@ -74,6 +75,9 @@ func (m Model) showMeetings() (Model, tea.Cmd) {
 				return m, nil
 			}
 			m.overlay.p = m.meetingItems(m.overlay.p, st)
+		}
+		if r, ok := ev.Item.Value.(meetingRow); ok && ev.Kind == palette.Chosen {
+			return m.openMeeting(r.Meeting)
 		}
 		return m, nil
 	})
@@ -129,10 +133,12 @@ func (m Model) meetingItems(p palette.Model, st *meetingState) palette.Model {
 		if r.Start.Before(from) || !r.Start.Before(to) {
 			continue
 		}
+		gutter := "  "
+		if _, ok := st.notes[meetingUID(r.Meeting)]; ok {
+			gutter = "✓ "
+		}
 		it := palette.Item{
-			// The two-cell gutter is blank; a later ticket marks Meetings
-			// that have a Meeting Note there.
-			Text:        "  " + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
+			Text:        gutter + r.Start.In(loc).Format("15:04") + "–" + r.End.In(loc).Format("15:04") + "  " + r.Title,
 			Detail:      r.cal,
 			DetailColor: r.color,
 			Value:       r,

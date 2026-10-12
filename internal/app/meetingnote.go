@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/tedkulp/pholio/internal/dates"
 	"github.com/tedkulp/pholio/internal/engine"
 	"github.com/tedkulp/pholio/internal/index"
+	"github.com/tedkulp/pholio/internal/tasks"
 )
 
 // meetingTemplate is the built-in meeting Template, used when
@@ -140,6 +142,8 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 	rel := m.meetingRel(mt)
 	p := m.abs(rel)
 	text := []byte(m.meetingNoteText(tmpl, mt))
+	start := mt.Start.In(m.now().Location())
+	noDaily := ""
 	return m.openThen(p, func(m Model) error {
 		if err := m.deps.FS.MkdirAll(filepath.Dir(p)); err != nil {
 			return fmt.Errorf("creating Meeting Note: %w", err)
@@ -153,10 +157,43 @@ func (m Model) createMeetingNote(mt calendar.Meeting) (Model, tea.Cmd) {
 		if ix := m.index(); ix != nil {
 			ix.Update(p, text)
 		}
-		return nil
+		linked, err := m.linkMeetingNote(start, "- "+start.Format("15:04")+" [["+linkName(rel)+"]]")
+		if !linked {
+			noDaily = " (no Daily Note for " + start.Format(dates.ISO) + ")"
+		}
+		return err
 	}, func(m Model) Model {
 		e := m.ed.Engine()
 		e.SetCursor(engine.Pos{Line: e.Buf.LineCount() - 1})
-		return m.say("Created "+rel, false)
+		return m.say("Created "+rel+noDaily, false)
 	})
+}
+
+// linkMeetingNote appends line, a Meeting Note's back-link, under
+// meetings_heading in day's Daily Note, adding the heading when it is
+// missing. linked is false when that Daily Note does not exist.
+//
+// It runs once the open buffer has been dealt with (saved or discarded)
+// and just before switching to the Meeting Note, so it always writes the
+// file, even when the Daily Note is the open Note.
+func (m Model) linkMeetingNote(day time.Time, line string) (linked bool, err error) {
+	path := m.dailyNotes().Path(day)
+	if _, err := m.deps.FS.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	heading := m.config().MeetingsHeading
+	err = tasks.EditFile(m.otherFile(), path, func(lines []string) []string {
+		at := tasks.SectionAt(lines, heading, func(l string) bool { return strings.TrimSpace(l) != "" })
+		if at < 0 {
+			if n := len(lines); n > 0 && strings.TrimSpace(lines[n-1]) != "" {
+				lines = append(lines, "")
+			}
+			return append(lines, heading, line)
+		}
+		return slices.Insert(lines, at, line)
+	})
+	if err != nil {
+		return true, fmt.Errorf("linking the Meeting Note from %s: %w", m.rel(path), err)
+	}
+	return true, nil
 }

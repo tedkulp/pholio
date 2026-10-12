@@ -78,8 +78,11 @@ func TestEnterCreatesTheMeetingNoteFromTheBuiltInTemplate(t *testing.T) {
 	if got := m.Cursor().Line; got != 10 {
 		t.Errorf("cursor line = %d, want 10 (## Notes, the last line)", got)
 	}
-	if got := messageLine(m); got != "Created meetings/2026-10-12-1400-design-review.md" {
+	if got := messageLine(m); got != "Created meetings/2026-10-12-1400-design-review.md (no Daily Note for 2026-10-12)" {
 		t.Errorf("message = %q", got)
+	}
+	if _, err := fsys.Stat(reviewDaily); err == nil {
+		t.Error("the back-link created the Daily Note")
 	}
 	viewHas(t, m, "NORMAL")
 	if m = press(m, ctrlO); m.Path() != "/vault/a.md" {
@@ -161,5 +164,74 @@ func TestAMeetingWithAMeetingNoteIsTickedAndReopened(t *testing.T) {
 	}
 	if got := messageLine(m); got != "" {
 		t.Errorf("message = %q, want none", got)
+	}
+}
+
+const reviewDaily = "/vault/daily/2026-10-12.md"
+
+func TestCreatingAMeetingNoteLinksItFromTheDailyNote(t *testing.T) {
+	m, fsys := meetingNotesVault(t, map[string]string{
+		reviewDaily: "# Mon\n\n## Meetings\n- 09:00 [[standup]]\n\n## Tasks\n- [ ] x\n",
+	})
+
+	m = press(openMeetings(t, m), enter)
+
+	want := "# Mon\n\n## Meetings\n- 09:00 [[standup]]\n- 14:00 [[2026-10-12-1400-design-review]]\n\n## Tasks\n- [ ] x\n"
+	if got := fileText(t, fsys, reviewDaily); got != want {
+		t.Errorf("Daily Note =\n%q\nwant\n%q", got, want)
+	}
+	if got := messageLine(m); got != "Created meetings/2026-10-12-1400-design-review.md" {
+		t.Errorf("message = %q", got)
+	}
+}
+
+func TestTheMeetingsHeadingIsAddedWhenMissing(t *testing.T) {
+	m, fsys := meetingNotesVault(t, map[string]string{
+		"/vault/.pholio/config.toml": "meetings_heading = \"### Calls\"\n",
+		reviewDaily:                  "# Mon\n\n## Meetings\n",
+	})
+
+	_ = press(openMeetings(t, m), enter)
+
+	want := "# Mon\n\n## Meetings\n\n### Calls\n- 14:00 [[2026-10-12-1400-design-review]]\n"
+	if got := fileText(t, fsys, reviewDaily); got != want {
+		t.Errorf("Daily Note =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestTheBackLinkReachesTheOpenDailyNote(t *testing.T) {
+	m, fsys := meetingNotesVault(t, map[string]string{reviewDaily: "## Meetings\n"})
+	m = ex(m, "e "+reviewDaily)
+
+	m = press(openMeetings(t, m), enter)
+
+	want := "## Meetings\n- 14:00 [[2026-10-12-1400-design-review]]\n"
+	if got := fileText(t, fsys, reviewDaily); got != want {
+		t.Errorf("Daily Note =\n%q\nwant\n%q", got, want)
+	}
+	if m = press(m, ctrlO); m.Path() != reviewDaily || m.Text() != want {
+		t.Errorf("ctrl-o = %s %q, want the Daily Note with the back-link", m.Path(), m.Text())
+	}
+}
+
+func TestTheBackLinkReachesADirtyOpenDailyNote(t *testing.T) {
+	for _, tc := range []struct{ answer, want string }{
+		{"y", "## Meetings\nmine\n- 14:00 [[2026-10-12-1400-design-review]]\n"},
+		{"n", "## Meetings\n- 14:00 [[2026-10-12-1400-design-review]]\n"},
+	} {
+		t.Run(tc.answer, func(t *testing.T) {
+			m, fsys := meetingNotesVault(t, map[string]string{reviewDaily: "## Meetings\n"})
+			m = press(typeKeys(ex(m, "e "+reviewDaily), "omine"), esc)
+
+			m = press(openMeetings(t, m), enter)
+			m = typeKeys(m, tc.answer)
+
+			if got := fileText(t, fsys, reviewDaily); got != tc.want {
+				t.Errorf("Daily Note =\n%q\nwant\n%q", got, tc.want)
+			}
+			if m.Path() != reviewNote {
+				t.Errorf("opened %s, want the Meeting Note", m.Path())
+			}
+		})
 	}
 }

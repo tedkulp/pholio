@@ -24,6 +24,7 @@ import (
 	"github.com/tedkulp/pholio/internal/dates"
 	"github.com/tedkulp/pholio/internal/index"
 	"github.com/tedkulp/pholio/internal/seam"
+	"github.com/tedkulp/pholio/internal/theme"
 )
 
 // Config is the merged result of the user and Vault config files.
@@ -38,6 +39,9 @@ type Config struct {
 	Wrap               bool
 	Conceal            bool
 	OpenDailyOnStartup bool
+	// Calendars are the [[calendars]] feeds Meetings come from. User
+	// config only: feed URLs are secrets.
+	Calendars []Calendar
 
 	// Vault keys. They may be set in either file; the Vault file wins.
 
@@ -52,8 +56,25 @@ type Config struct {
 	// NewNoteFolder is Vault-relative; "" is the Vault root.
 	NewNoteFolder string
 	TasksHeading  string
+	// MeetingsFolder is where Meeting Notes are created.
+	MeetingsFolder string
+	// MeetingTemplate is the meeting Template; a built-in one is used when
+	// the file is missing.
+	MeetingTemplate string
+	// MeetingsHeading is the Daily Note heading Meeting Note back-links go
+	// under.
+	MeetingsHeading string
 	// TaskFormat is the Task Format new Task Metadata is written in.
 	TaskFormat index.Format
+}
+
+// Calendar is one [[calendars]] entry: an ICS feed of Meetings.
+type Calendar struct {
+	Name string
+	URL  string
+	// Color is a CSS colour name or "#rrggbb" as written, "" if unset or
+	// invalid.
+	Color string
 }
 
 // Default returns the config used when no file sets anything.
@@ -69,6 +90,9 @@ func Default() Config {
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
 		TasksHeading:       "## Tasks",
+		MeetingsFolder:     "meetings",
+		MeetingTemplate:    "templates/meeting.md",
+		MeetingsHeading:    "## Meetings",
 		TaskFormat:         index.Dataview,
 	}
 }
@@ -89,9 +113,9 @@ func VaultConfigPath(vault string) string {
 func Load(fsys seam.FS, d Dirs, vault string) (Config, []string) {
 	cfg := Default()
 	var problems []string
-	problems = append(problems, apply(fsys, UserConfigPath(d), &cfg, userKeys, vaultKeys)...)
+	problems = append(problems, apply(fsys, UserConfigPath(d), &cfg, true, userKeys, vaultKeys)...)
 	if vault != "" {
-		problems = append(problems, apply(fsys, VaultConfigPath(vault), &cfg, vaultKeys)...)
+		problems = append(problems, apply(fsys, VaultConfigPath(vault), &cfg, false, vaultKeys)...)
 	}
 	return cfg, problems
 }
@@ -127,17 +151,20 @@ var userKeys = map[string]setter{
 }
 
 var vaultKeys = map[string]setter{
-	"day_starts_at":   dayStart,
-	"daily_folder":    str(func(c *Config) *string { return &c.DailyFolder }, inVault),
-	"daily_template":  str(func(c *Config) *string { return &c.DailyTemplate }, inVaultFile),
-	"daily_subfolder": str(func(c *Config) *string { return &c.DailySubfolder }, inVaultLayout),
-	"zettel_folder":   str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
-	"new_note_folder": str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
-	"tasks_heading":   str(func(c *Config) *string { return &c.TasksHeading }, heading),
-	"task_format":     taskFormat,
+	"day_starts_at":    dayStart,
+	"daily_folder":     str(func(c *Config) *string { return &c.DailyFolder }, inVault),
+	"daily_template":   str(func(c *Config) *string { return &c.DailyTemplate }, inVaultFile),
+	"daily_subfolder":  str(func(c *Config) *string { return &c.DailySubfolder }, inVaultLayout),
+	"zettel_folder":    str(func(c *Config) *string { return &c.ZettelFolder }, inVault),
+	"new_note_folder":  str(func(c *Config) *string { return &c.NewNoteFolder }, inVault),
+	"tasks_heading":    str(func(c *Config) *string { return &c.TasksHeading }, heading),
+	"task_format":      taskFormat,
+	"meetings_folder":  str(func(c *Config) *string { return &c.MeetingsFolder }, inVault),
+	"meeting_template": str(func(c *Config) *string { return &c.MeetingTemplate }, inVaultFile),
+	"meetings_heading": str(func(c *Config) *string { return &c.MeetingsHeading }, heading),
 }
 
-func apply(fsys seam.FS, file string, cfg *Config, tables ...map[string]setter) []string {
+func apply(fsys seam.FS, file string, cfg *Config, user bool, tables ...map[string]setter) []string {
 	data, err := fsys.ReadFile(file)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -156,6 +183,16 @@ func apply(fsys seam.FS, file string, cfg *Config, tables ...map[string]setter) 
 	sort.Strings(keys)
 	var problems []string
 	for _, k := range keys {
+		if k == "calendars" { // an array of tables: one problem per bad entry
+			if !user {
+				problems = append(problems, file+": calendars: only allowed in the user config, since feed URLs are secrets")
+				continue
+			}
+			for _, p := range calendars(cfg, raw[k]) {
+				problems = append(problems, fmt.Sprintf("%s: %s", file, p))
+			}
+			continue
+		}
 		set := lookup(k, tables)
 		if set == nil {
 			problems = append(problems, fmt.Sprintf("%s: unknown key %q", file, k))
@@ -163,6 +200,51 @@ func apply(fsys seam.FS, file string, cfg *Config, tables ...map[string]setter) 
 		}
 		if msg := set(cfg, raw[k]); msg != "" {
 			problems = append(problems, fmt.Sprintf("%s: %s: %s", file, k, msg))
+		}
+	}
+	return problems
+}
+
+// calendars stores the [[calendars]] entries that have a name and url,
+// and describes the rest.
+func calendars(c *Config, v any) []string {
+	entries, ok := v.([]map[string]any)
+	if !ok {
+		return []string{"calendars: want [[calendars]] tables, got " + show(v)}
+	}
+	var problems []string
+	for i, e := range entries {
+		at := fmt.Sprintf("calendars[%d]: ", i+1)
+		var cal Calendar
+		fields := map[string]*string{"name": &cal.Name, "url": &cal.URL, "color": &cal.Color}
+		keys := make([]string, 0, len(e))
+		for k := range e {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			f, known := fields[k]
+			s, isStr := e[k].(string)
+			switch {
+			case !known:
+				problems = append(problems, fmt.Sprintf("%sunknown key %q", at, k))
+			case !isStr:
+				problems = append(problems, fmt.Sprintf("%s%s: want a string, got %s", at, k, show(e[k])))
+			default:
+				*f = s
+			}
+		}
+		if _, err := theme.ParseCSSColor(cal.Color); cal.Color != "" && err != nil {
+			problems = append(problems, fmt.Sprintf("%scolor: want a CSS colour name or \"#rrggbb\", got %q", at, cal.Color))
+			cal.Color = ""
+		}
+		switch {
+		case cal.Name == "":
+			problems = append(problems, at+"name: want a non-empty string, got none")
+		case cal.URL == "":
+			problems = append(problems, at+"url: want a non-empty string, got none")
+		default:
+			c.Calendars = append(c.Calendars, cal)
 		}
 	}
 	return problems

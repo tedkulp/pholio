@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/tedkulp/pholio/internal/config"
@@ -13,7 +14,7 @@ func TestStartupWithNoConfigFilesUsesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Target != (config.Target{Vault: "/vault"}) || got.Config != defaults() || got.Message != "" {
+	if got.Target != (config.Target{Vault: "/vault"}) || !reflect.DeepEqual(got.Config, defaults()) || got.Message != "" {
 		t.Fatalf("got %+v", got)
 	}
 }

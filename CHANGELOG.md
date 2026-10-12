@@ -4,6 +4,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Meeting Notes. `[[calendars]]` in the user config lists ICS calendar feeds, and `spc m` (`:meetings`) opens the Meeting picker on Today's Meetings from all of them: `h` / `l` change day, `t` returns to Today, `r` refreshes. `enter` opens the Meeting's Meeting Note, or creates it in `meetings_folder` from `meeting_template` and links it under `meetings_heading` in that day's Daily Note. Recurring and moved Meetings and real-world timezones are handled, and feeds are cached so the picker opens at once and works offline.
+
 ## [0.5.0] - 2026-10-08
 
 ### Added

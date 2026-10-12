@@ -100,9 +100,9 @@ func (m Model) openAt(path string, at func(Model) Model) (Model, tea.Cmd) {
 }
 
 // openThen is openAt with before, which runs once the dirty buffer has been
-// dealt with and before the switch (creating a Daily Note). An error from
-// before is shown and nothing is opened.
-func (m Model) openThen(path string, before func(Model) error, at func(Model) Model) (Model, tea.Cmd) {
+// dealt with and before the switch (creating a Daily Note), and gives the
+// path to open. An error from before is shown and nothing is opened.
+func (m Model) openThen(path string, before func(Model) (string, error), at func(Model) Model) (Model, tea.Cmd) {
 	from := m.here()
 	if path == m.path() {
 		m.focus = focusEditor
@@ -114,7 +114,8 @@ func (m Model) openThen(path string, before func(Model) error, at func(Model) Mo
 	}
 	return m.unlessDirty(saveBeforeSwitch, func(m Model) (Model, tea.Cmd) {
 		if before != nil {
-			if err := before(m); err != nil {
+			var err error
+			if path, err = before(m); err != nil {
 				return m.say(err.Error(), true), nil
 			}
 		}

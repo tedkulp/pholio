@@ -98,6 +98,18 @@ func (m *MemFS) WriteFile(name string, data []byte) error {
 	return nil
 }
 
+// Create stores data at name, failing with fs.ErrExist when name is
+// already there.
+func (m *MemFS) Create(name string, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, err := m.files.Stat(key(name)); err == nil {
+		return pathErr("create", name, fs.ErrExist)
+	}
+	m.files[key(name)] = &fstest.MapFile{Data: append([]byte(nil), data...), Mode: 0o644, ModTime: time.Now()}
+	return nil
+}
+
 // Stat describes the named file or directory.
 func (m *MemFS) Stat(name string) (fs.FileInfo, error) {
 	m.mu.Lock()

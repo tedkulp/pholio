@@ -32,3 +32,23 @@ func TestRenderPlaceholders(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderExtraPlaceholders(t *testing.T) {
+	vars := daily.Vars{
+		Day:   time.Date(2026, 10, 12, 0, 0, 0, 0, time.Local),
+		Title: "Standup",
+		Times: map[string]time.Time{"start": time.Date(2026, 10, 12, 9, 30, 0, 0, time.Local)},
+		Text:  map[string]string{"daily": "[[2026-10-12]]", "link": ""},
+	}
+	for tmpl, want := range map[string]string{
+		"{{start}}":         "09:30",
+		"{{start:h:mm A}}":  "9:30 AM",
+		"{{daily}}":         "[[2026-10-12]]",
+		"Link: {{link}}":    "Link: ",
+		"{{end}} {{title}}": "{{end}} Standup",
+	} {
+		if got := daily.Render(tmpl, vars); got != want {
+			t.Errorf("Render(%q) = %q, want %q", tmpl, got, want)
+		}
+	}
+}

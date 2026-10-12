@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -28,6 +29,9 @@ func defaults() config.Config {
 		DailyTemplate:      "templates/daily.md",
 		ZettelFolder:       "zettel",
 		NewNoteFolder:      "",
+		MeetingsFolder:     "meetings",
+		MeetingTemplate:    "templates/meeting.md",
+		MeetingsHeading:    "## Meetings",
 		TasksHeading:       "## Tasks",
 		TaskFormat:         index.Dataview,
 	}
@@ -39,7 +43,7 @@ func TestLoadWithNoFilesGivesDefaults(t *testing.T) {
 	if len(problems) != 0 {
 		t.Fatalf("problems = %v, want none", problems)
 	}
-	if cfg != defaults() {
+	if !reflect.DeepEqual(cfg, defaults()) {
 		t.Fatalf("cfg = %+v\nwant %+v", cfg, defaults())
 	}
 }
@@ -69,8 +73,12 @@ zettel_folder = "z"
 new_note_folder = "inbox"
 tasks_heading = "### Todo"
 task_format = "emoji"
+meetings_folder = "work/meetings"
+meeting_template = "tpl/meeting.md"
+meetings_heading = "### Calls"
 `,
 			want: func(c *config.Config) {
+				c.MeetingsFolder, c.MeetingTemplate, c.MeetingsHeading = "work/meetings", "tpl/meeting.md", "### Calls"
 				c.DayStartsAt = 4*time.Hour + 30*time.Minute
 				c.DailyFolder, c.DailyTemplate, c.ZettelFolder, c.NewNoteFolder, c.TasksHeading = "journal", "tpl/day.md", "z", "inbox", "### Todo"
 				c.DailySubfolder, c.TaskFormat = "YYYY/MM", index.Emoji
@@ -110,6 +118,7 @@ task_format = "emoji"
 daily_folder = "/abs"
 zettel_folder = "../out"
 tasks_heading = "Tasks"
+meetings_heading = "Meetings"
 task_format = "bogus"
 `,
 			want: func(c *config.Config) { c.Conceal = false },
@@ -118,6 +127,7 @@ task_format = "bogus"
 				userPath + `: theme: want a string, got 3`,
 				vaultPath + `: daily_folder: want a folder inside the Vault, got "/abs"`,
 				vaultPath + `: day_starts_at: want "HH:MM", got "25:00"`,
+				vaultPath + `: meetings_heading: want a markdown heading like "## Tasks", got "Meetings"`,
 				vaultPath + `: task_format: want "dataview" or "emoji", got "bogus"`,
 				vaultPath + `: tasks_heading: want a markdown heading like "## Tasks", got "Tasks"`,
 				vaultPath + `: zettel_folder: want a folder inside the Vault, got "../out"`,
@@ -139,6 +149,49 @@ task_format = "bogus"
 			want:     func(c *config.Config) { c.DailyFolder = "journal" },
 			problems: []string{userPath + ": toml: line 1 (last key \"wrap\"): expected value but found '\\n' instead"},
 		},
+		{
+			name: "calendars",
+			user: "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\ncolor = \"lightcoral\"\n" +
+				"[[calendars]]\nname = \"home\"\nurl = \"https://example.test/home.ics\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{
+					{Name: "work", URL: "https://example.test/work.ics", Color: "lightcoral"},
+					{Name: "home", URL: "https://example.test/home.ics"},
+				}
+			},
+		},
+		{
+			name: "a calendar missing name or url is skipped",
+			user: "[[calendars]]\nurl = \"https://example.test/a.ics\"\n" +
+				"[[calendars]]\nname = \"b\"\n" +
+				"[[calendars]]\nname = \"c\"\nurl = \"https://example.test/c.ics\"\ncolour = \"red\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{{Name: "c", URL: "https://example.test/c.ics"}}
+			},
+			problems: []string{
+				userPath + `: calendars[1]: name: want a non-empty string, got none`,
+				userPath + `: calendars[2]: url: want a non-empty string, got none`,
+				userPath + `: calendars[3]: unknown key "colour"`,
+			},
+		},
+		{
+			name: "a bad calendar color is dropped, keeping the calendar",
+			user: "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\ncolor = \"blurple\"\n",
+			want: func(c *config.Config) {
+				c.Calendars = []config.Calendar{{Name: "work", URL: "https://example.test/work.ics"}}
+			},
+			problems: []string{userPath + `: calendars[1]: color: want a CSS colour name or "#rrggbb", got "blurple"`},
+		},
+		{
+			name:     "calendars must be tables",
+			user:     "calendars = \"work\"\n",
+			problems: []string{userPath + `: calendars: want [[calendars]] tables, got "work"`},
+		},
+		{
+			name:     "calendars are refused in the Vault config",
+			vault:    "[[calendars]]\nname = \"work\"\nurl = \"https://example.test/work.ics\"\n",
+			problems: []string{vaultPath + `: calendars: only allowed in the user config, since feed URLs are secrets`},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,7 +207,7 @@ task_format = "bogus"
 			if tt.want != nil {
 				tt.want(&want)
 			}
-			if cfg != want {
+			if !reflect.DeepEqual(cfg, want) {
 				t.Errorf("cfg = %+v\nwant  %+v", cfg, want)
 			}
 			if !equal(problems, tt.problems) {

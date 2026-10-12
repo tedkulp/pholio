@@ -7,6 +7,7 @@
 package palette
 
 import (
+	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -35,7 +36,10 @@ type Item struct {
 	// DetailSlot styles Detail when the row is not selected. Zero means
 	// overlay.hint.
 	DetailSlot theme.Slot
-	Group      string // a header row is drawn whenever this changes
+	// DetailColor, when set, is the unselected Detail's foreground, used
+	// as-is on every theme (a calendar's colour).
+	DetailColor color.Color
+	Group       string // a header row is drawn whenever this changes
 	// Slot styles Text when the row is not selected. Zero means overlay.box.
 	Slot theme.Slot
 	// Marks are [start, end) byte ranges of Text drawn with
@@ -95,6 +99,9 @@ func New(title string, mode Mode) Model {
 	m.hint = "↑/↓ move · enter choose · esc close"
 	return m.refilter()
 }
+
+// WithTitle replaces the title.
+func (m Model) WithTitle(s string) Model { m.title = s; return m }
 
 // WithPlaceholder sets the text shown in an empty input.
 func (m Model) WithPlaceholder(s string) Model { m.placeholder = s; return m }
@@ -431,7 +438,11 @@ func row(th theme.Theme, it Item, w int, selected bool) string {
 	if dslot == "" {
 		dslot = theme.OverlayHint
 	}
-	return styled + strings.Repeat(" ", gap) + th.Style(dslot).Render(detail)
+	ds := th.Style(dslot)
+	if it.DetailColor != nil {
+		ds = ds.Foreground(it.DetailColor)
+	}
+	return styled + strings.Repeat(" ", gap) + ds.Render(detail)
 }
 
 // marked draws it.Text in slot with its Marks in markdown.search, fitted

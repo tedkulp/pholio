@@ -41,3 +41,35 @@ func TestParseColorRejects(t *testing.T) {
 		}
 	}
 }
+
+// rgb is c as 8-bit red, green and blue.
+func rgb(c color.Color) [3]uint32 {
+	r, g, b, _ := c.RGBA()
+	return [3]uint32{r >> 8, g >> 8, b >> 8}
+}
+
+func TestParseCSSColor(t *testing.T) {
+	tests := []struct {
+		in   string
+		want [3]uint32
+	}{
+		{"lightcoral", [3]uint32{0xf0, 0x80, 0x80}},
+		{"RebeccaPurple", [3]uint32{0x66, 0x33, 0x99}},
+		{"#1e90ff", [3]uint32{0x1e, 0x90, 0xff}},
+	}
+	for _, tt := range tests {
+		got, err := theme.ParseCSSColor(tt.in)
+		if err != nil {
+			t.Errorf("ParseCSSColor(%q): %v", tt.in, err)
+			continue
+		}
+		if rgb(got) != tt.want {
+			t.Errorf("ParseCSSColor(%q) = %x, want %x", tt.in, rgb(got), tt.want)
+		}
+	}
+	for _, in := range []string{"", "notacolour", "12", "#f80", "#gg0000"} {
+		if c, err := theme.ParseCSSColor(in); err == nil {
+			t.Errorf("ParseCSSColor(%q) = %v, want an error", in, c)
+		}
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/tedkulp/pholio/internal/palette"
@@ -262,6 +263,31 @@ func TestGeometryIsTopAnchoredAndCentred(t *testing.T) {
 	x, _, w, h = palette.Geometry(50, 10)
 	if x != 5 || w != 40 || h != 8 {
 		t.Errorf("Geometry(50, 10) = x %d, %dx%d", x, w, h)
+	}
+}
+
+func TestDetailColorDrawsAnUnselectedDetailInThatColour(t *testing.T) {
+	th := theme.Default()
+	coral := lipgloss.Color("#f08080")
+	want := th.Style(theme.OverlayHint).Foreground(coral).Render("home")
+	p := palette.New("Meetings", palette.List).SetItems([]palette.Item{
+		{Text: "Standup", Detail: "work"},
+		{Text: "Dentist", Detail: "home", DetailColor: coral},
+	})
+
+	if box, _, _, _ := p.View(th, 60, 24); !strings.Contains(box, want) {
+		t.Errorf("view lacks the coloured Detail %q:\n%q", want, box)
+	}
+	if box, _, _, _ := p.Select(1).View(th, 60, 24); strings.Contains(box, want) {
+		t.Errorf("the selected row kept its Detail colour:\n%q", box)
+	}
+}
+
+func TestWithTitleRenamesThePalette(t *testing.T) {
+	p := palette.New("Old", palette.List).WithTitle("New")
+
+	if got := view(p, 38, 24); !strings.HasPrefix(got, "╭─ New ─") {
+		t.Errorf("view =\n%s", got)
 	}
 }
 

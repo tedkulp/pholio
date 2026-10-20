@@ -55,6 +55,10 @@ type Engine struct {
 	// Fixup, when set, runs as each change completes (see FixupFunc).
 	Fixup FixupFunc
 
+	// Clipboard, when set, is the system clipboard, kept in step with the
+	// unnamed register (see clipboard.go).
+	Clipboard Clipboard
+
 	fs     FS
 	exCmds map[string]ExFunc
 
@@ -77,7 +81,8 @@ type Engine struct {
 	recording bool       // still appending insert-mode keys to dot
 	replaying bool
 
-	regs map[rune]register
+	regs      map[rune]register
+	clipStale bool // the last clipboard write failed
 
 	undo, redo []change
 	pending    *change // edits of the command in progress

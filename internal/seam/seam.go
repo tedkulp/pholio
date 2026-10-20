@@ -1,5 +1,6 @@
 // Package seam holds the interfaces pholio uses to reach the outside world:
-// the clock, the filesystem, the URL opener, the trash and the file watcher.
+// the clock, the filesystem, the URL opener, the trash, the file watcher and
+// the clipboard.
 // Production code receives them injected, and tests pass the fakes from
 // package seamtest.
 package seam
@@ -37,6 +38,12 @@ type Opener interface {
 // Trash moves a file or folder to the user's trash.
 type Trash interface {
 	Trash(path string) error
+}
+
+// Clipboard is the system clipboard.
+type Clipboard interface {
+	Read() (string, error)
+	Write(text string) error
 }
 
 // Op is the kind of change a WatchEvent reports. Ops can be combined.

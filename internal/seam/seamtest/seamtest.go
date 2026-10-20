@@ -315,3 +315,53 @@ func (w *Watcher) Close() error {
 	close(w.errs)
 	return nil
 }
+
+// Clipboard is a fake seam.Clipboard. Set stands in for another app
+// copying text; Writes lists what was written through the seam.
+type Clipboard struct {
+	mu     sync.Mutex
+	text   string
+	writes []string
+	// ReadErr and WriteErr, if set, are returned from Read and Write.
+	// A failed Write leaves the text unchanged.
+	ReadErr, WriteErr error
+}
+
+var _ seam.Clipboard = (*Clipboard)(nil)
+
+// Read returns the clipboard text.
+func (c *Clipboard) Read() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ReadErr != nil {
+		return "", c.ReadErr
+	}
+	return c.text, nil
+}
+
+// Write records text and, unless WriteErr is set, puts it on the clipboard.
+func (c *Clipboard) Write(text string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.writes = append(c.writes, text)
+	if c.WriteErr != nil {
+		return c.WriteErr
+	}
+	c.text = text
+	return nil
+}
+
+// Set puts text on the clipboard without recording a write, as another
+// app copying it would.
+func (c *Clipboard) Set(text string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.text = text
+}
+
+// Writes returns the texts written so far, oldest first.
+func (c *Clipboard) Writes() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string(nil), c.writes...)
+}

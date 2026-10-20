@@ -152,3 +152,23 @@ func TestDotRepeatsClipboardPaste(t *testing.T) {
 		t.Errorf("got %q, want %q", g, want)
 	}
 }
+
+func TestFailedWriteDoesNotPasteOldClipboard(t *testing.T) {
+	// The write fails but the read works: the clipboard still holds the
+	// old text, so p must use what was just yanked.
+	e, cb := loadClip("|ab")
+	cb.Set("old")
+	cb.WriteErr = errors.New("timed out")
+	feed(e, "ylp")
+	if g, want := show(e), "a|ab"; g != want {
+		t.Errorf("got %q, want %q", g, want)
+	}
+	// Once a write succeeds, the clipboard is read again.
+	cb.WriteErr = nil
+	feed(e, "yl")
+	cb.Set("X")
+	feed(e, "p")
+	if g, want := show(e), "aa|Xb"; g != want {
+		t.Errorf("after recovery: got %q, want %q", g, want)
+	}
+}

@@ -149,7 +149,7 @@ func (e *Engine) operate(op string, reg rune, a, z Pos, linewise bool) {
 // clipboard, so "+ and "* need no slot of their own.
 func (e *Engine) store(r register, reg rune, yank bool) {
 	e.regs['"'] = r
-	if reg != 0 && !clipReg(reg) {
+	if reg != 0 && !isClipboardReg(reg) {
 		e.regs[reg] = r
 	}
 	if yank {
@@ -177,7 +177,7 @@ func (e *Engine) paste(p parsed, after bool) {
 		reg = '"'
 	}
 	r, ok := e.regs[reg]
-	if clipReg(reg) {
+	if isClipboardReg(reg) {
 		r, ok = e.fromClipboard()
 	}
 	if !ok {

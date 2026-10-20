@@ -21,25 +21,9 @@ func clipApp(t *testing.T, cb *seamtest.Clipboard) app.Model {
 	return resize(m, 80, 12)
 }
 
-// msgs runs cmd and returns the messages it gives, batches flattened.
-func msgs(cmd tea.Cmd) []tea.Msg {
-	if cmd == nil {
-		return nil
-	}
-	msg := cmd()
-	if batch, ok := msg.(tea.BatchMsg); ok {
-		var out []tea.Msg
-		for _, c := range batch {
-			out = append(out, msgs(c)...)
-		}
-		return out
-	}
-	return []tea.Msg{msg}
-}
-
 func setsClipboard(cmd tea.Cmd, text string) bool {
 	want := tea.SetClipboard(text)()
-	for _, msg := range msgs(cmd) {
+	for _, msg := range msgsOf(cmd) {
 		if reflect.DeepEqual(msg, want) {
 			return true
 		}
@@ -79,7 +63,7 @@ func TestNoClipboardToolFallsBackToOSC52(t *testing.T) {
 	m := clipApp(t, cb)
 	m, cmd := pressing(typeKeys(m, "y"), tea.KeyPressMsg{Code: 'y', Text: "y"})
 	if !setsClipboard(cmd, "hello\n") {
-		t.Errorf("no OSC 52 write in %#v", msgs(cmd))
+		t.Errorf("no OSC 52 write in %#v", msgsOf(cmd))
 	}
 	// A put uses the register; the message line stays empty.
 	m, cmd = pressing(m, tea.KeyPressMsg{Code: 'p', Text: "p"})

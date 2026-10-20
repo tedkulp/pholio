@@ -81,7 +81,8 @@ type Engine struct {
 	recording bool       // still appending insert-mode keys to dot
 	replaying bool
 
-	regs map[rune]register
+	regs      map[rune]register
+	clipStale bool // the last clipboard write failed
 
 	undo, redo []change
 	pending    *change // edits of the command in progress

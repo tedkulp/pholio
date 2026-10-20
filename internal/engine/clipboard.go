@@ -9,26 +9,27 @@ type Clipboard interface {
 	Write(text string) error
 }
 
-// clipReg reports whether reg is one of the registers that are the
+// isClipboardReg reports whether reg is one of the registers that are the
 // clipboard: unnamed, "+ and "*.
-func clipReg(reg rune) bool { return reg == '"' || reg == '+' || reg == '*' }
+func isClipboardReg(reg rune) bool { return reg == '"' || reg == '+' || reg == '*' }
 
-// toClipboard writes r to the clipboard. A failed write is ignored: the
-// registers still hold the text.
+// toClipboard writes r to the clipboard. A failed write is not reported:
+// the registers still hold the text, and puts use them until a write
+// succeeds, since the clipboard then holds something older.
 func (e *Engine) toClipboard(r register) {
 	if e.Clipboard != nil {
-		_ = e.Clipboard.Write(r.text)
+		e.clipStale = e.Clipboard.Write(r.text) != nil
 	}
 }
 
 // fromClipboard is the register a put from the clipboard uses. Text that
 // matches the unnamed register is pholio's own, so the register is used
 // and keeps its shape (lines or a block). Other text is pasted as lines
-// when it ends in a newline, else inline. Without a readable, non-empty
-// clipboard it falls back to the unnamed register.
+// when it ends in a newline, else inline. Without a readable, non-empty,
+// up-to-date clipboard it falls back to the unnamed register.
 func (e *Engine) fromClipboard() (register, bool) {
 	r, ok := e.regs['"']
-	if e.Clipboard == nil {
+	if e.Clipboard == nil || e.clipStale {
 		return r, ok
 	}
 	text, err := e.Clipboard.Read()

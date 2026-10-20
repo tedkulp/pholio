@@ -69,6 +69,18 @@ func TestSystemClipboardRunsTheTools(t *testing.T) {
 	}
 }
 
+// shortTempDir is a temporary directory with a path short enough for unix
+// sockets: macOS allows 104 bytes, and t.TempDir there is too long.
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "wl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
 // socket makes a unix socket at dir/name. A live one accepts connections
 // until the test ends; a stale one is left behind with nothing listening.
 func socket(t *testing.T, dir, name string, live bool) {
@@ -88,6 +100,7 @@ func socket(t *testing.T, dir, name string, live bool) {
 func TestFallbackDisplay(t *testing.T) {
 	for _, c := range []struct {
 		name          string
+		goos          string // "" is linux
 		live, stale   []string
 		files         []string
 		display, want string
@@ -99,9 +112,10 @@ func TestFallbackDisplay(t *testing.T) {
 		{name: "lock file is not a socket", files: []string{"wayland-1"}, want: ""},
 		{name: "other sockets ignored", live: []string{"wayland-1", "herdr-nvim"}, want: "wayland-1"},
 		{name: "a display is already set", live: []string{"wayland-1"}, display: ":0", want: ""},
+		{name: "not on macOS", goos: "darwin", live: []string{"wayland-1"}, want: ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			dir := t.TempDir()
+			dir := shortTempDir(t)
 			for _, n := range c.live {
 				socket(t, dir, n, true)
 			}
@@ -114,7 +128,11 @@ func TestFallbackDisplay(t *testing.T) {
 				}
 			}
 			env := map[string]string{"XDG_RUNTIME_DIR": dir, "DISPLAY": c.display}
-			if got := fallbackDisplay(func(k string) string { return env[k] }); got != c.want {
+			goos := c.goos
+			if goos == "" {
+				goos = "linux"
+			}
+			if got := fallbackDisplay(goos, func(k string) string { return env[k] }); got != c.want {
 				t.Errorf("fallbackDisplay = %q, want %q", got, c.want)
 			}
 		})

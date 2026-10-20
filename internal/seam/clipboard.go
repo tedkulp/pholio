@@ -36,7 +36,7 @@ var _ Clipboard = SystemClipboard{}
 // display set, as in a multiplexer pane started outside the desktop, it
 // uses the Wayland display found by fallbackDisplay.
 func NewSystemClipboard(getenv func(string) string) SystemClipboard {
-	d := fallbackDisplay(getenv)
+	d := fallbackDisplay(runtime.GOOS, getenv)
 	if d == "" {
 		return pickClipboard(runtime.GOOS, getenv, exec.LookPath)
 	}
@@ -51,13 +51,13 @@ func NewSystemClipboard(getenv func(string) string) SystemClipboard {
 }
 
 // fallbackDisplay is the Wayland display to use when neither
-// WAYLAND_DISPLAY nor DISPLAY is set: the one wayland-* socket in
+// WAYLAND_DISPLAY nor DISPLAY is set, off macOS (which has pbcopy): the one wayland-* socket in
 // $XDG_RUNTIME_DIR that accepts a connection. With none, or several (a
 // nested compositor, say), it returns "" rather than guess, since copies
 // sent to the wrong compositor would vanish without an error.
-func fallbackDisplay(getenv func(string) string) string {
+func fallbackDisplay(goos string, getenv func(string) string) string {
 	dir := getenv("XDG_RUNTIME_DIR")
-	if getenv("WAYLAND_DISPLAY") != "" || getenv("DISPLAY") != "" || dir == "" {
+	if goos == "darwin" || getenv("WAYLAND_DISPLAY") != "" || getenv("DISPLAY") != "" || dir == "" {
 		return ""
 	}
 	entries, err := os.ReadDir(dir)

@@ -2,6 +2,8 @@ package seam
 
 import (
 	"errors"
+	"net"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -63,6 +65,65 @@ func TestSystemClipboardRunsTheTools(t *testing.T) {
 	}
 	got, err := cb.Read()
 	if err != nil || got != "a\nb" {
+		t.Errorf("Read = %q, %v", got, err)
+	}
+}
+
+// socket makes a unix socket at dir/name. A live one accepts connections
+// until the test ends; a stale one is left behind with nothing listening.
+func socket(t *testing.T, dir, name string, live bool) {
+	t.Helper()
+	l, err := net.Listen("unix", filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if live {
+		t.Cleanup(func() { _ = l.Close() })
+		return
+	}
+	l.(*net.UnixListener).SetUnlinkOnClose(false)
+	_ = l.Close()
+}
+
+func TestFallbackDisplay(t *testing.T) {
+	for _, c := range []struct {
+		name          string
+		live, stale   []string
+		files         []string
+		display, want string
+	}{
+		{name: "one live socket", live: []string{"wayland-1"}, files: []string{"wayland-1.lock"}, want: "wayland-1"},
+		{name: "stale socket skipped", live: []string{"wayland-1"}, stale: []string{"wayland-0"}, want: "wayland-1"},
+		{name: "two live sockets", live: []string{"wayland-0", "wayland-1"}, want: ""},
+		{name: "only stale", stale: []string{"wayland-0"}, want: ""},
+		{name: "lock file is not a socket", files: []string{"wayland-1"}, want: ""},
+		{name: "other sockets ignored", live: []string{"wayland-1", "herdr-nvim"}, want: "wayland-1"},
+		{name: "a display is already set", live: []string{"wayland-1"}, display: ":0", want: ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, n := range c.live {
+				socket(t, dir, n, true)
+			}
+			for _, n := range c.stale {
+				socket(t, dir, n, false)
+			}
+			for _, n := range c.files {
+				if err := os.WriteFile(filepath.Join(dir, n), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			env := map[string]string{"XDG_RUNTIME_DIR": dir, "DISPLAY": c.display}
+			if got := fallbackDisplay(func(k string) string { return env[k] }); got != c.want {
+				t.Errorf("fallbackDisplay = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestToolsGetTheFallbackDisplay(t *testing.T) {
+	cb := SystemClipboard{paste: []string{"sh", "-c", `printf %s "$WAYLAND_DISPLAY"`}, env: []string{"WAYLAND_DISPLAY=wayland-9"}}
+	if got, err := cb.Read(); err != nil || got != "wayland-9" {
 		t.Errorf("Read = %q, %v", got, err)
 	}
 }

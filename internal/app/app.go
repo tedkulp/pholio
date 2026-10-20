@@ -31,6 +31,9 @@ type Deps struct {
 	Index *index.Index
 	// Trash takes deleted Notes and folders (d in the tree, :delete).
 	Trash seam.Trash
+	// Clipboard, if set, is the system clipboard that yank and put use.
+	// When writing to it fails, the text is sent with OSC 52 instead.
+	Clipboard seam.Clipboard
 }
 
 // focus is the pane that receives keys.
@@ -45,6 +48,7 @@ const (
 // message lines, and at most one prompt or palette on top.
 type Model struct {
 	deps    Deps
+	clip    *clipboard // nil without Deps.Clipboard
 	vault   string
 	file    *noteFile // the open Note's file; shared by copies, like the engine
 	ed      editor.Model
@@ -99,6 +103,9 @@ func New(deps Deps, path string) (Model, error) {
 		exq: &exQueue{}, appearance: defaultAppearance(),
 		feeds: &feeds{byURL: map[string]*feed{}},
 	}
+	if deps.Clipboard != nil {
+		m.clip = &clipboard{sys: deps.Clipboard}
+	}
 	file, e, err := m.openEngine(path)
 	if err != nil {
 		return Model{}, err
@@ -121,6 +128,9 @@ func (m Model) openEngine(path string) (*noteFile, *engine.Engine, error) {
 	}
 	file.e = e
 	e.Msg = "" // the message line is the app's
+	if m.clip != nil {
+		e.Clipboard = m.clip
+	}
 	m.registerEx(e)
 	return file, e, nil
 }
@@ -306,9 +316,11 @@ func (m Model) editorKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.quitAfterWrite = true
 	}
 	m, cmd := m.drainEx()
+	cmd = tea.Batch(cmd, m.clip.osc52())
 	if e.Quit { // :wq and :x, once written
 		e.Quit = false
-		return m.requestQuit()
+		m, quit := m.requestQuit()
+		return m, tea.Batch(cmd, quit)
 	}
 	return m, cmd
 }

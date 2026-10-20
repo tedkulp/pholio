@@ -145,15 +145,17 @@ func (e *Engine) operate(op string, reg rune, a, z Pos, linewise bool) {
 }
 
 // store puts r in the unnamed register and in reg, if one was given. A
-// yank also goes in register 0.
+// yank also goes in register 0. The unnamed register is copied to the
+// clipboard, so "+ and "* need no slot of their own.
 func (e *Engine) store(r register, reg rune, yank bool) {
 	e.regs['"'] = r
-	if reg != 0 {
+	if reg != 0 && !clipReg(reg) {
 		e.regs[reg] = r
 	}
 	if yank {
 		e.regs['0'] = r
 	}
+	e.toClipboard(r)
 }
 
 // deleteLines removes lines a..z, including their line breaks.
@@ -175,6 +177,9 @@ func (e *Engine) paste(p parsed, after bool) {
 		reg = '"'
 	}
 	r, ok := e.regs[reg]
+	if clipReg(reg) {
+		r, ok = e.fromClipboard()
+	}
 	if !ok {
 		e.Msg = "E353: Nothing in register " + string(reg)
 		return

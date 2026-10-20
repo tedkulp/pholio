@@ -55,6 +55,10 @@ type Engine struct {
 	// Fixup, when set, runs as each change completes (see FixupFunc).
 	Fixup FixupFunc
 
+	// Clipboard, when set, is the system clipboard, kept in step with the
+	// unnamed register (see clipboard.go).
+	Clipboard Clipboard
+
 	fs     FS
 	exCmds map[string]ExFunc
 

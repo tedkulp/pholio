@@ -4,6 +4,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Yank, delete and put use the system clipboard, like vim's `clipboard=unnamedplus`: every write to the unnamed register also goes to the clipboard, and `p`/`P` paste what's on it, so text moves between pholio and other apps. `"+` and `"*` name the clipboard; `"a`–`"z` and `"0`–`"9` stay internal. Text copied in another app pastes as lines when it ends in a newline, else inline; pholio's own yanks keep their shape (lines or a block). pholio uses `wl-copy`/`wl-paste`, `xclip` or `xsel`, or `pbcopy`/`pbpaste`, and without them (as over SSH) writes the clipboard with OSC 52, where puts use the internal register.
+
 ## [0.6.1] - 2026-10-12
 
 ### Added

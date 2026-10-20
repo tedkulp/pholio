@@ -64,7 +64,7 @@ func run(args []string) error {
 	// With no file argument this opens (or creates) today's Daily Note.
 	deps := app.Deps{
 		FS: fsys, Clock: clock, Watch: vault, Opener: seam.SystemOpener{}, Index: ix,
-		Trash: seam.NewSystemTrash(os.Getenv, home, clock),
+		Trash: seam.NewSystemTrash(os.Getenv, home, clock), Clipboard: seam.NewSystemClipboard(os.Getenv),
 	}
 	m, err := app.Start(deps, s)
 	if err != nil {
